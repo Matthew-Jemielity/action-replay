@@ -1,5 +1,5 @@
 #ifndef ACTION_REPLAY_RECORDER_H__
-#define ACTION_REPLAY_RECORDER_H__
+# define ACTION_REPLAY_RECORDER_H__
 
 # include <action_replay/return.h>
 

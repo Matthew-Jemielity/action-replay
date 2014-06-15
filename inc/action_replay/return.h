@@ -1,5 +1,5 @@
 #ifndef ACTION_REPLAY_RETURN_T_H__
-#define ACTION_REPLAY_RETURN_T_H__
+# define ACTION_REPLAY_RETURN_T_H__
 
 # include <action_replay/error.h>
 
