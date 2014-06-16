@@ -5,10 +5,10 @@
 # include <action_replay/return.h>
 # include <sys/types.h>
 
-typedef struct action_replay_class_t action_replay_class_t;
 typedef action_replay_return_t ( * action_replay_constructor_t )( void * const object, action_replay_args_t const args );
 typedef action_replay_return_t ( * action_replay_destructor_t )( void * const object );
 typedef action_replay_return_t ( * action_replay_copier_t )( void * const restrict copy, void const * const restrict original );
+typedef struct action_replay_class_t action_replay_class_t;
 
 struct action_replay_class_t
 {

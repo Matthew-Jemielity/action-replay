@@ -42,6 +42,10 @@ action_replay_class_t action_replay_object_t_class( void )
 
 action_replay_args_t action_replay_object_t_args( void )
 {
-    return 0; /* TODO */
+    return ( action_replay_args_t const ) {
+        NULL,
+        action_replay_args_t_default_destructor,
+        action_replay_args_t_default_copier
+    };
 }
 

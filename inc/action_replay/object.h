@@ -1,6 +1,7 @@
 #ifndef ACTION_REPLAY_OBJECT_H__
 # define ACTION_REPLAY_OBJECT_H__
 
+# include <action_replay/args.h>
 # include <action_replay/class.h>
 
 typedef struct

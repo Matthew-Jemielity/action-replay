@@ -1,5 +1,6 @@
 #include <action_replay/args.h>
 #include <action_replay/class.h>
+#include <action_replay/error.h>
 #include <action_replay/object.h>
 #include <action_replay/object_oriented_programming.h>
 #include <action_replay/return.h>
@@ -29,15 +30,16 @@ void * action_replay_construct( action_replay_class_t const _class, action_repla
     return NULL;
 }
 
-void * action_replay_destruct( action_replay_object_t * const object )
+action_replay_error_t action_replay_destruct( action_replay_object_t * const object )
 {
-    if( 0 != object->_class.destructor( object ).status )
+    action_replay_error_t result;
+
+    if( 0 == ( result = object->_class.destructor( object ).status ))
     {
-        return object;
+        free( object );
     }
 
-    free( object );
-    return NULL;
+    return result;
 }
 
 void * action_replay_copy( action_replay_object_t const * const object )
