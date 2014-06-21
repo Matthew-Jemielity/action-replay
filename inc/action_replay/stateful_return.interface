@@ -1,0 +1,7 @@
+#ifndef ACTION_REPLAY_STATEFUL_RETURN_H__
+# error "Add #include <action_replay/stateful_return.h>"
+#endif /* ACTION_REPLAY_STATEFUL_RETURN_H__ */
+
+#include <action_replay/return.interface>
+void * state;
+

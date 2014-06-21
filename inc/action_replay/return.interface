@@ -1,6 +1,6 @@
-#ifndef ACTION_REPLAY_RETURN_T_H__
+#ifndef ACTION_REPLAY_RETURN_H__
 # error "Add #include <action_replay/return.h>"
-#endif /* ACTION_REPLAY_RETURN_T_H__ */
+#endif /* ACTION_REPLAY_RETURN_H__ */
 
 action_replay_error_t status;
 

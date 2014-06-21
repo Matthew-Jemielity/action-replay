@@ -3,3 +3,4 @@
 #endif /* ACTION_REPLAY_OBJECT_H__ */
 
 action_replay_class_t _class;
+

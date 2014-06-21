@@ -1,39 +1,47 @@
 #include <action_replay/args.h>
 #include <action_replay/error.h>
+#include <action_replay/stateful_return.h>
 #include <errno.h>
 #include <stddef.h>
 
-action_replay_args_t_functor_return_t action_replay_args_t_default_destructor( void * const state )
+action_replay_return_t action_replay_args_t_default_destructor( void * const state )
 {
     ( void ) state;
-    return ( action_replay_args_t_functor_return_t const ) { 0, NULL };
+    return ( action_replay_return_t const ) { 0 };
 }
 
-action_replay_args_t_functor_return_t action_replay_args_t_default_copier( void * const state )
+action_replay_stateful_return_t action_replay_args_t_default_copier( void * const state )
 {
-    return ( action_replay_args_t_functor_return_t const ) { 0, state };
+    return ( action_replay_stateful_return_t const ) { 0, state };
 }
  
-action_replay_error_t action_replay_args_t_destruct( action_replay_args_t args )
+action_replay_return_t action_replay_args_t_delete( action_replay_args_t args )
 {
-    action_replay_args_t_functor_return_t const result = args.destructor( args.state );
-
-    if(( 0 == result.status ) && ( NULL != result.state ))
-    {
-        return EINVAL;
-    }
-
-    return result.status;
+    return args.destructor( args.state );
 }
 
-action_replay_args_t action_replay_args_t_copy( action_replay_args_t const args )
+action_replay_args_t_return_t action_replay_args_t_copy( action_replay_args_t const args )
 {
-    action_replay_args_t result;
-    action_replay_args_t_functor_return_t const copy = args.copier( args.state );
+    action_replay_args_t_return_t result;
 
-    result.state = ( 0 == copy.status ) ? copy.state : NULL;
-    result.destructor = args.destructor;
-    result.copier = args.copier;
+    action_replay_stateful_return_t const copy = args.copier( args.state );
+
+    if( 0 == ( result.status = copy.status ))
+    {
+        result.args = ( action_replay_args_t const ) { copy.state, args.destructor, args.copier };
+    }
+
+    return result;
+}
+
+action_replay_args_t action_replay_args_t_default_args( void )
+{
+    static action_replay_args_t const result =
+    {
+        NULL,
+        action_replay_args_t_default_destructor,
+        action_replay_args_t_default_copier
+    };
 
     return result;
 }
