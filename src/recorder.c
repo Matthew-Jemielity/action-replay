@@ -1,4 +1,4 @@
-#define _POSIX_C_SOURCE 200809L
+#define _POSIX_C_SOURCE 200809L /* strndup */
 
 #include "action_replay/args.h"
 #include "action_replay/error.h"
