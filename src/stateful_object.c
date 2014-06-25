@@ -4,6 +4,7 @@
 #include "action_replay/object_oriented_programming_super.h"
 #include "action_replay/return.h"
 #include "action_replay/stateful_object.h"
+#include "action_replay/stateful_return.h"
 #include <errno.h>
 #include <stddef.h>
 #include <stdlib.h>
@@ -46,7 +47,7 @@ static action_replay_return_t action_replay_stateful_object_t_state_t_delete( ac
 
 action_replay_class_t action_replay_stateful_object_t_class( void );
 
-static action_replay_return_t action_replay_stateful_object_t_internal( action_replay_object_oriented_programming_super_operation_t const operation, action_replay_stateful_object_t * const stateful_object, action_replay_stateful_object_t const * const original_stateful_object, action_replay_args_t const args, action_replay_stateful_object_t_args_func_t const function )
+static action_replay_return_t action_replay_stateful_object_t_internal( action_replay_object_oriented_programming_super_operation_t const operation, action_replay_stateful_object_t * const restrict stateful_object, action_replay_stateful_object_t const * const restrict original_stateful_object, action_replay_args_t const args, action_replay_stateful_object_t_args_func_t const function )
 {
     SUPER( operation, action_replay_stateful_object_t_class, stateful_object, original_stateful_object, args );
 

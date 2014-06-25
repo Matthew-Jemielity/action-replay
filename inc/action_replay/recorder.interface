@@ -1,0 +1,9 @@
+#ifndef ACTION_REPLAY_RECORDER_H__
+# error "Add #include <action_replay/recorder.h>"
+#endif /* ACTION_REPLAY_RECORDER_H__ */
+
+#include <action_replay/stateful_object.interface>
+action_replay_recorder_t_state_t * recorder_state;
+action_replay_recorder_t_func_t start;
+action_replay_recorder_t_func_t stop;
+

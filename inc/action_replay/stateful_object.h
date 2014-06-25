@@ -2,6 +2,7 @@
 # define ACTION_REPLAY_STATEFUL_OBJECT_H__
 
 # include <action_replay/args.h>
+# include <action_replay/class.h>
 # include <action_replay/object.h>
 
 typedef struct action_replay_stateful_object_t action_replay_stateful_object_t;
