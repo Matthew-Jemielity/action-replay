@@ -21,6 +21,7 @@ void * action_replay_new( action_replay_class_t const _class, action_replay_args
 
     if( 0 == _class.constructor( object, args ).status )
     {
+        action_replay_args_t_delete( args );
         return object;
     }
 

@@ -8,7 +8,7 @@
 
 typedef struct action_replay_recorder_t_state_t action_replay_recorder_t_state_t;
 typedef struct action_replay_recorder_t action_replay_recorder_t;
-typedef action_replay_return_t ( * action_replay_recorder_t_func_t )( action_replay_recorder_t * const recorder );
+typedef action_replay_return_t ( * action_replay_recorder_t_func_t )( action_replay_recorder_t * const self );
 
 struct action_replay_recorder_t
 {

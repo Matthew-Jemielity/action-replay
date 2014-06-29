@@ -7,7 +7,7 @@
 
 typedef struct action_replay_stateful_object_t action_replay_stateful_object_t;
 typedef struct action_replay_stateful_object_t_state_t action_replay_stateful_object_t_state_t;
-typedef action_replay_args_t_return_t ( * action_replay_stateful_object_t_args_func_t )( action_replay_stateful_object_t const * const stateful_object );
+typedef action_replay_args_t_return_t ( * action_replay_stateful_object_t_args_func_t )( action_replay_stateful_object_t const * const self );
 
 struct action_replay_stateful_object_t
 {

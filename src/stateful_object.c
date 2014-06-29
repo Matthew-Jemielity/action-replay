@@ -97,12 +97,12 @@ static inline action_replay_return_t action_replay_stateful_object_t_copier( voi
     return action_replay_stateful_object_t_internal( COPY, copy, original, original_stateful_object->object_state->args, original_stateful_object->args );
 }
 
-static inline action_replay_args_t_return_t action_replay_stateful_object_t_args_func_t_args( action_replay_stateful_object_t const * const stateful_object )
+static inline action_replay_args_t_return_t action_replay_stateful_object_t_args_func_t_args( action_replay_stateful_object_t const * const self )
 {
-    return ( NULL == stateful_object ) ?
+    return ( NULL == self ) ?
         ( action_replay_args_t_return_t const ) { EINVAL, action_replay_args_t_default_args() }
         :
-        action_replay_args_t_copy( stateful_object->object_state->args )
+        action_replay_args_t_copy( self->object_state->args )
         ;
 }
 

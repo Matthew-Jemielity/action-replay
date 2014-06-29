@@ -1,4 +1,4 @@
-#define _POSIX_C_SOURCE 200809L /* strndup */
+#define _POSIX_C_SOURCE 200809L /* fileno, strndup */
 
 #include "action_replay/args.h"
 #include "action_replay/error.h"
@@ -215,32 +215,32 @@ static action_replay_return_t action_replay_recorder_t_copier( void * const rest
 
 static void * action_replay_recorder_worker( void * thread_state );
 
-static action_replay_return_t action_replay_recorder_t_func_t_start( action_replay_recorder_t * const recorder )
+static action_replay_return_t action_replay_recorder_t_func_t_start( action_replay_recorder_t * const self )
 {
-    if( NULL == recorder )
+    if( NULL == self )
     {
         return ( action_replay_return_t const ) { EINVAL };
     }
 
-    action_replay_recorder_t_worker_status_t const * const worker_status = OPA_cas_ptr( &( recorder->recorder_state->status ), &worker_stopped, &worker_starting );
+    action_replay_recorder_t_worker_status_t const * const worker_status = OPA_cas_ptr( &( self->recorder_state->status ), &worker_stopped, &worker_starting );
     if( WORKER_STOPPED != * worker_status )
     {
         return ( action_replay_return_t const ) { EBUSY };
     }
 
-    action_replay_return_t const result = { pthread_create( &( recorder->recorder_state->worker ), NULL, action_replay_recorder_worker, recorder->recorder_state ) };
-    OPA_store_ptr( &( recorder->recorder_state->status ), ( 0 == result.status ) ? &worker_started : &worker_stopped );
+    action_replay_return_t const result = { pthread_create( &( self->recorder_state->worker ), NULL, action_replay_recorder_worker, self->recorder_state ) };
+    OPA_store_ptr( &( self->recorder_state->status ), ( 0 == result.status ) ? &worker_started : &worker_stopped );
     return result;
 }
 
-static action_replay_return_t action_replay_recorder_t_func_t_stop( action_replay_recorder_t * const recorder )
+static action_replay_return_t action_replay_recorder_t_func_t_stop( action_replay_recorder_t * const self )
 {
-    if( NULL == recorder )
+    if( NULL == self )
     {
         return ( action_replay_return_t const ) { EINVAL };
     }
 
-    action_replay_recorder_t_worker_status_t const * const worker_status = OPA_cas_ptr( &( recorder->recorder_state->status ), &worker_started, &worker_stopping );
+    action_replay_recorder_t_worker_status_t const * const worker_status = OPA_cas_ptr( &( self->recorder_state->status ), &worker_started, &worker_stopping );
     switch( * worker_status )
     {
         case WORKER_STARTING:
@@ -253,10 +253,10 @@ static action_replay_return_t action_replay_recorder_t_func_t_stop( action_repla
     }
 
     /* TODO: what to do if below fails? */
-    write( recorder->recorder_state->pipe_fd[ PIPE_WRITE ], " ", 1 ); /* force exit from poll */
-    pthread_join( recorder->recorder_state->worker, NULL ); /* wait for thread to finish using state */
+    write( self->recorder_state->pipe_fd[ PIPE_WRITE ], " ", 1 ); /* force exit from poll */
+    pthread_join( self->recorder_state->worker, NULL ); /* wait for thread to finish using state */
 
-    OPA_store_ptr( &( recorder->recorder_state->status ), &worker_stopped );
+    OPA_store_ptr( &( self->recorder_state->status ), &worker_stopped );
     return ( action_replay_return_t const ) { 0 };
 }
 
@@ -280,16 +280,20 @@ static void * action_replay_recorder_worker( void * thread_state )
 
     while( poll( descriptors, POLL_DESCRIPTORS_COUNT, INFINITE_WAIT ))
     {
-        if( POLLIN == ( descriptors[ POLL_RUN_FLAG_DESCRIPTOR ].revents & POLLIN ))
+        if
+        (
+            ( POLLIN == ( descriptors[ POLL_RUN_FLAG_DESCRIPTOR ].revents & POLLIN ))
+            || ( 0 != ( descriptors[ POLL_RUN_FLAG_DESCRIPTOR ].revents & ( POLLERR | POLLHUP | POLLNVAL )))
+            || ( 0 != ( descriptors[ POLL_INPUT_DESCRIPTOR ].revents & ( POLLERR | POLLHUP | POLLNVAL )))
+        )
         {
             break;
         }
-        /*
-         * TODO:
-         * check both for errors
-         * read sizeof( struct input_event ) from POLL_INPUT_DESCRIPTOR
-         */
-        puts( "Event from input device" );
+        if( POLLIN != ( descriptors[ POLL_INPUT_DESCRIPTOR ].revents & POLLIN ))
+        {
+            continue;
+        }
+        /* TODO */
     }
     return NULL;
 }
@@ -343,7 +347,7 @@ static action_replay_stateful_return_t action_replay_recorder_t_args_t_copier( v
     }
 
     action_replay_recorder_t_args_t * const recorder_args = result.state;
-    action_replay_recorder_t_args_t * const original_recorder_args = state;
+    action_replay_recorder_t_args_t const * const original_recorder_args = state;
 
     if( NULL == ( recorder_args->path_to_input_device = strndup( original_recorder_args->path_to_input_device, INPUT_MAX_LEN )))
     {
