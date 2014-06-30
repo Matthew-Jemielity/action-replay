@@ -16,7 +16,7 @@ action_replay_object_oriented_programming_super_operation_t;
 #define SUPER_INTERNAL( class_function, object, operation, cleanup ) \
     do \
     { \
-        action_replay_class_t_func_t const * parent_list = class_function().inheritance; \
+        action_replay_class_t_func_t const * parent_list = class_function()->inheritance; \
         action_replay_return_t result; \
         unsigned int index; \
         \
@@ -47,8 +47,8 @@ action_replay_object_oriented_programming_super_operation_t;
     do \
     { \
         SUPER_INTERNAL( class_function, object, \
-            parent().constructor( object, args ), \
-            parent().destructor( object ); \
+            parent()->constructor( object, args ), \
+            parent()->destructor( object ); \
         ); \
     } \
     while( false )
@@ -57,7 +57,7 @@ action_replay_object_oriented_programming_super_operation_t;
     do \
     { \
         SUPER_INTERNAL( class_function, object, \
-            parent().destructor( object ), \
+            parent()->destructor( object ), \
             ( void )parent \
         ); \
     } \
@@ -67,8 +67,8 @@ action_replay_object_oriented_programming_super_operation_t;
     do \
     { \
         SUPER_INTERNAL( class_function, copy, \
-            parent().copier( copy, original ), \
-            parent().destructor( copy ) \
+            parent()->copier( copy, original ), \
+            parent()->destructor( copy ) \
         ); \
     } \
     while( false )

@@ -26,7 +26,7 @@ static action_replay_return_t action_replay_object_t_copier( void * const restri
     return action_replay_object_t_internal( copy );
 }
 
-action_replay_class_t action_replay_object_t_class( void )
+action_replay_class_t const * action_replay_object_t_class( void )
 {
     static action_replay_class_t_func_t const inheritance[] = { NULL };
     static action_replay_class_t const result =
@@ -38,7 +38,7 @@ action_replay_class_t action_replay_object_t_class( void )
         inheritance
     };
 
-    return result;
+    return &result;
 }
 
 action_replay_args_t action_replay_object_t_args( void )

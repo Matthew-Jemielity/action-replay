@@ -2,5 +2,5 @@
 # error "Add #include <action_replay/object.h>"
 #endif /* ACTION_REPLAY_OBJECT_H__ */
 
-action_replay_class_t _class;
+action_replay_class_t const * _class;
 

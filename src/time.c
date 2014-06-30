@@ -52,7 +52,7 @@ static action_replay_return_t action_replay_time_t_state_t_delete( action_replay
     return ( action_replay_return_t ) { 0 };
 }
 
-action_replay_class_t action_replay_time_t_class( void );
+action_replay_class_t const * action_replay_time_t_class( void );
 
 static action_replay_return_t action_replay_time_t_internal( action_replay_object_oriented_programming_super_operation_t const operation, action_replay_time_t * const restrict time, action_replay_time_t const * const restrict original_time, action_replay_args_t const args, action_replay_time_t_func_t const add, action_replay_time_t_func_t const sub, action_replay_time_t_conversion_func_t const nanoseconds, action_replay_time_t_conversion_func_t const microseconds, action_replay_time_t_conversion_func_t const milliseconds, action_replay_time_t_conversion_func_t const seconds )
 {
@@ -223,7 +223,7 @@ static inline action_replay_time_t_return_t action_replay_time_t_conversion_func
     return action_replay_time_t_conversion_func_t_internal( self, SECONDS );
 }
 
-action_replay_class_t action_replay_time_t_class( void )
+action_replay_class_t const * action_replay_time_t_class( void )
 {
     static action_replay_class_t_func_t const inheritance[] = { action_replay_stateful_object_t_class, NULL };
     static action_replay_class_t const result =
@@ -235,7 +235,7 @@ action_replay_class_t action_replay_time_t_class( void )
         inheritance
     };
 
-    return result;
+    return &result;
 }
 
 static action_replay_return_t action_replay_time_t_args_t_destructor( void * const state )

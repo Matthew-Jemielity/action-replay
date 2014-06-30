@@ -17,7 +17,7 @@ struct action_replay_recorder_t
 # include <action_replay/recorder.interface>
 };
 
-action_replay_class_t action_replay_recorder_t_class( void );
+action_replay_class_t const * action_replay_recorder_t_class( void );
 action_replay_args_t action_replay_recorder_t_args( char const * const restrict path_to_input_device, char const * const restrict path_to_output );
 
 #endif /* ACTION_REPLAY_RECORDER_H__ */

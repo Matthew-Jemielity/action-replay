@@ -45,7 +45,7 @@ static action_replay_return_t action_replay_stateful_object_t_state_t_delete( ac
     return result;
 }
 
-action_replay_class_t action_replay_stateful_object_t_class( void );
+action_replay_class_t const * action_replay_stateful_object_t_class( void );
 
 static action_replay_return_t action_replay_stateful_object_t_internal( action_replay_object_oriented_programming_super_operation_t const operation, action_replay_stateful_object_t * const restrict stateful_object, action_replay_stateful_object_t const * const restrict original_stateful_object, action_replay_args_t const args, action_replay_stateful_object_t_args_func_t const function )
 {
@@ -106,7 +106,7 @@ static inline action_replay_args_t_return_t action_replay_stateful_object_t_args
         ;
 }
 
-action_replay_class_t action_replay_stateful_object_t_class( void )
+action_replay_class_t const * action_replay_stateful_object_t_class( void )
 {
     static action_replay_class_t_func_t const inheritance[] = { action_replay_object_t_class, NULL };
     static action_replay_class_t const result =
@@ -118,7 +118,7 @@ action_replay_class_t action_replay_stateful_object_t_class( void )
         inheritance
     };
 
-    return result;
+    return &result;
 }
 
 action_replay_args_t action_replay_stateful_object_t_args( void )

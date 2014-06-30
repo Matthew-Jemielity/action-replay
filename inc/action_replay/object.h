@@ -10,7 +10,7 @@ typedef struct
 }
 action_replay_object_t;
 
-action_replay_class_t action_replay_object_t_class( void );
+action_replay_class_t const * action_replay_object_t_class( void );
 action_replay_args_t action_replay_object_t_args( void );
 
 #endif /* ACTION_REPLAY_OBJECT_H__ */

@@ -27,7 +27,7 @@ struct action_replay_time_t
 # include <action_replay/time.interface>
 };
 
-action_replay_class_t action_replay_time_t_class( void );
+action_replay_class_t const * action_replay_time_t_class( void );
 action_replay_args_t action_replay_time_t_args( struct timespec const value );
 
 struct timespec action_replay_time_t_now( void );
