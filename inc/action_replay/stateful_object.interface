@@ -2,7 +2,6 @@
 # error "Add #include <action_replay/stateful_object.h>"
 #endif /* ACTION_REPLAY_STATEFUL_OBJECT_H__ */
 
-#include <action_replay/object.interface>
 action_replay_stateful_object_t_state_t * object_state;
 action_replay_stateful_object_t_args_func_t args;
 

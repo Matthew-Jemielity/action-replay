@@ -11,6 +11,7 @@ typedef action_replay_args_t_return_t ( * action_replay_stateful_object_t_args_f
 
 struct action_replay_stateful_object_t
 {
+# include <action_replay/object.interface>
 # include <action_replay/stateful_object.interface>
 };
 

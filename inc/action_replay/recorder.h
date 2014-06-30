@@ -12,6 +12,8 @@ typedef action_replay_return_t ( * action_replay_recorder_t_func_t )( action_rep
 
 struct action_replay_recorder_t
 {
+# include <action_replay/object.interface>
+# include <action_replay/stateful_object.interface>
 # include <action_replay/recorder.interface>
 };
 

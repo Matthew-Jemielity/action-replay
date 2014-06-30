@@ -22,6 +22,8 @@ typedef action_replay_time_t_return_t ( * action_replay_time_t_conversion_func_t
 
 struct action_replay_time_t
 {
+# include <action_replay/object.interface>
+# include <action_replay/stateful_object.interface>
 # include <action_replay/time.interface>
 };
 

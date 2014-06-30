@@ -2,7 +2,6 @@
 # error "Add #include <action_replay/time.h>"
 #endif /* ACTION_REPLAY_TIME_H__ */
 
-#include <action_replay/stateful_object.interface>
 action_replay_time_t_state_t * time_state;
 action_replay_time_t_func_t add;
 action_replay_time_t_func_t sub;
