@@ -3,6 +3,6 @@
 #endif /* ACTION_REPLAY_RECORDER_H__ */
 
 action_replay_recorder_t_state_t * recorder_state;
-action_replay_recorder_t_func_t start;
-action_replay_recorder_t_func_t stop;
+action_replay_recorder_t_start_func_t start;
+action_replay_recorder_t_stop_func_t stop;
 

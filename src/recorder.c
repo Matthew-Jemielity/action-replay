@@ -2,11 +2,13 @@
 
 #include "action_replay/args.h"
 #include "action_replay/error.h"
+#include "action_replay/object_oriented_programming.h"
 #include "action_replay/object_oriented_programming_super.h"
 #include "action_replay/recorder.h"
 #include "action_replay/return.h"
 #include "action_replay/stateful_object.h"
 #include "action_replay/stateful_return.h"
+#include "action_replay/time.h"
 #include <errno.h>
 #include <fcntl.h>
 #include <linux/input.h>
@@ -56,11 +58,12 @@ action_replay_recorder_t_args_t;
 
 struct action_replay_recorder_t_state_t
 {
-	FILE * input;
-	FILE * output;
-	int pipe_fd[ PIPE_DESCRIPTORS_COUNT ];
-        OPA_ptr_t status;
-	pthread_t worker;
+    action_replay_time_t const * zero_time;
+    FILE * input;
+    FILE * output;
+    int pipe_fd[ PIPE_DESCRIPTORS_COUNT ];
+    OPA_ptr_t status;
+    pthread_t worker;
 };
 
 typedef action_replay_error_t ( * action_replay_recorder_t_header_func_t )( char const * const restrict path_to_input_device, FILE * const restrict output );
@@ -98,6 +101,7 @@ static action_replay_stateful_return_t action_replay_recorder_t_state_t_new( act
     if( 0 == ( result.status = header_operation( recorder_args->path_to_input_device, recorder_state->output )))
     {
         OPA_store_ptr( &( recorder_state->status ), &worker_stopped );
+        recorder_state->zero_time = NULL;
         return result;
     }
 
@@ -131,7 +135,7 @@ static action_replay_return_t action_replay_recorder_t_state_t_delete( action_re
 
 action_replay_class_t const * action_replay_recorder_t_class( void );
 
-static action_replay_return_t action_replay_recorder_t_internal( action_replay_object_oriented_programming_super_operation_t const operation, action_replay_recorder_t * const restrict recorder, action_replay_recorder_t const * const restrict original_recorder, action_replay_args_t const args, action_replay_recorder_t_header_func_t const header_operation, action_replay_recorder_t_func_t const start, action_replay_recorder_t_func_t const stop )
+static action_replay_return_t action_replay_recorder_t_internal( action_replay_object_oriented_programming_super_operation_t const operation, action_replay_recorder_t * const restrict recorder, action_replay_recorder_t const * const restrict original_recorder, action_replay_args_t const args, action_replay_recorder_t_header_func_t const header_operation, action_replay_recorder_t_start_func_t const start, action_replay_recorder_t_stop_func_t const stop )
 {
     if( NULL == args.state )
     {
@@ -156,12 +160,12 @@ static action_replay_return_t action_replay_recorder_t_internal( action_replay_o
 }
 
 static action_replay_error_t action_replay_recorder_t_write_header( char const * const path_to_input_device, FILE * const output );
-static action_replay_return_t action_replay_recorder_t_func_t_start( action_replay_recorder_t * const recorder );
-static action_replay_return_t action_replay_recorder_t_func_t_stop( action_replay_recorder_t * const recorder );
+static action_replay_return_t action_replay_recorder_t_start_func_t_start( action_replay_recorder_t * const restrict recorder, action_replay_time_t const * const restrict zero_time );
+static action_replay_return_t action_replay_recorder_t_stop_func_t_stop( action_replay_recorder_t * const recorder );
 
 static inline action_replay_return_t action_replay_recorder_t_constructor( void * const object, action_replay_args_t const args )
 {
-    return action_replay_recorder_t_internal( CONSTRUCT, object, NULL, args, action_replay_recorder_t_write_header, action_replay_recorder_t_func_t_start, action_replay_recorder_t_func_t_stop );
+    return action_replay_recorder_t_internal( CONSTRUCT, object, NULL, args, action_replay_recorder_t_write_header, action_replay_recorder_t_start_func_t_start, action_replay_recorder_t_stop_func_t_stop );
 }
 
 static action_replay_return_t action_replay_recorder_t_destructor( void * const object )
@@ -215,9 +219,15 @@ static action_replay_return_t action_replay_recorder_t_copier( void * const rest
 
 static void * action_replay_recorder_worker( void * thread_state );
 
-static action_replay_return_t action_replay_recorder_t_func_t_start( action_replay_recorder_t * const self )
+static action_replay_return_t action_replay_recorder_t_start_func_t_start( action_replay_recorder_t * const restrict self, action_replay_time_t const * const restrict zero_time )
 {
-    if( NULL == self )
+    if
+    (
+        ( NULL == self )
+        || ( NULL == zero_time )
+        || ( ! action_replay_is_type( ( void * ) self, action_replay_recorder_t_class() ))
+        || ( ! action_replay_is_type( ( void * ) zero_time, action_replay_time_t_class() ))
+    )
     {
         return ( action_replay_return_t const ) { EINVAL };
     }
@@ -228,14 +238,29 @@ static action_replay_return_t action_replay_recorder_t_func_t_start( action_repl
         return ( action_replay_return_t const ) { EBUSY };
     }
 
+    if( NULL == ( self->recorder_state->zero_time = action_replay_copy( ( void * ) zero_time )))
+    {
+        OPA_store_ptr( &( self->recorder_state->status ), &worker_stopped );
+        return ( action_replay_return_t const ) { ENOMEM };
+    }
+
     action_replay_return_t const result = { pthread_create( &( self->recorder_state->worker ), NULL, action_replay_recorder_worker, self->recorder_state ) };
+    if( 0 != result.status )
+    {
+        action_replay_delete( ( void * ) ( self->recorder_state->zero_time ));
+        self->recorder_state->zero_time = NULL;
+    }
     OPA_store_ptr( &( self->recorder_state->status ), ( 0 == result.status ) ? &worker_started : &worker_stopped );
     return result;
 }
 
-static action_replay_return_t action_replay_recorder_t_func_t_stop( action_replay_recorder_t * const self )
+static action_replay_return_t action_replay_recorder_t_stop_func_t_stop( action_replay_recorder_t * const self )
 {
-    if( NULL == self )
+    if
+    (
+        ( NULL == self )
+        || ( ! action_replay_is_type( ( void * ) self, action_replay_recorder_t_class() ))
+    )
     {
         return ( action_replay_return_t const ) { EINVAL };
     }
@@ -256,8 +281,10 @@ static action_replay_return_t action_replay_recorder_t_func_t_stop( action_repla
     write( self->recorder_state->pipe_fd[ PIPE_WRITE ], " ", 1 ); /* force exit from poll */
     pthread_join( self->recorder_state->worker, NULL ); /* wait for thread to finish using state */
 
+    action_replay_return_t const result = { action_replay_delete( ( void * ) ( self->recorder_state->zero_time )) };
+    self->recorder_state->zero_time = NULL;
     OPA_store_ptr( &( self->recorder_state->status ), &worker_stopped );
-    return ( action_replay_return_t const ) { 0 };
+    return result;
 }
 
 static void * action_replay_recorder_worker( void * thread_state )

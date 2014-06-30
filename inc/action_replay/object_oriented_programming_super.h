@@ -16,13 +16,13 @@ action_replay_object_oriented_programming_super_operation_t;
 #define SUPER_INTERNAL( class_function, object, operation, cleanup ) \
     do \
     { \
-        action_replay_class_t_func_t const * parent_list = class_function()->inheritance; \
+        action_replay_class_t_func_t const * const parent_list = class_function()->inheritance; \
         action_replay_return_t result; \
         unsigned int index; \
         \
         for( index = 0; parent_list[ index ] != NULL; ++index ) \
         { \
-            action_replay_class_t_func_t parent = parent_list[ index ]; \
+            action_replay_class_t_func_t const parent = parent_list[ index ]; \
             if( 0 != ( result = operation ).status ) \
             { \
                 break; \

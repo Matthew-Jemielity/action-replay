@@ -4,6 +4,7 @@
 #include <action_replay/object.h>
 #include <action_replay/object_oriented_programming.h>
 #include <action_replay/return.h>
+#include <stdbool.h>
 #include <stddef.h>
 #include <stdlib.h>
 
@@ -75,5 +76,39 @@ void * action_replay_copy( action_replay_object_t const * const object )
 
     free( copy );
     return NULL;
+}
+
+static bool action_replay_is_type_internal( action_replay_class_t const * const object_class, action_replay_class_t const * const type_class )
+{
+    if( object_class == type_class )
+    {
+        return true;
+    }
+
+    action_replay_class_t_func_t const * const parent_list = object_class->inheritance;
+    for( unsigned int index = 0; parent_list[ index ] != NULL; ++index )
+    {
+        action_replay_class_t_func_t const parent = parent_list[ index ];
+        if( action_replay_is_type_internal( parent(), type_class ))
+        {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+bool action_replay_is_type( action_replay_object_t const * const restrict object, action_replay_class_t const * const restrict _class )
+{
+    if
+    (
+        ( NULL == object )
+        || ( NULL == _class )
+    )
+    {
+        return false;
+    }
+
+    return action_replay_is_type_internal( object->_class, _class );
 }
 

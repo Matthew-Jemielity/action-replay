@@ -2,6 +2,7 @@
 
 #include "action_replay/args.h"
 #include "action_replay/class.h"
+#include "action_replay/object_oriented_programming.h"
 #include "action_replay/object_oriented_programming_super.h"
 #include "action_replay/return.h"
 #include "action_replay/stateful_return.h"
@@ -133,7 +134,11 @@ static action_replay_return_t action_replay_time_t_copier( void * const restrict
 
 static action_replay_return_t action_replay_time_t_func_t_add( action_replay_time_t * const self, struct timespec const value )
 {
-    if( NULL == self )
+    if
+    (
+        ( NULL == self )
+        || ( ! action_replay_is_type( ( void * ) self, action_replay_time_t_class() ))
+    )
     {
         return ( action_replay_return_t const ) { EINVAL };
     }
@@ -151,7 +156,11 @@ static action_replay_return_t action_replay_time_t_func_t_add( action_replay_tim
 
 static action_replay_return_t action_replay_time_t_func_t_sub( action_replay_time_t * const self, struct timespec const value )
 {
-    if( NULL == self )
+    if
+    (
+        ( NULL == self )
+        || ( ! action_replay_is_type( ( void * ) self, action_replay_time_t_class() ))
+    )
     {
         return ( action_replay_return_t const ) { EINVAL };
     }
@@ -178,7 +187,12 @@ action_replay_time_t_conversion_t;
 
 static action_replay_time_t_return_t action_replay_time_t_conversion_func_t_internal( action_replay_time_t const * const time, action_replay_time_t_conversion_t const type )
 {
-    if( NULL == time )
+    if
+    (
+        ( NULL == time )
+        || ( ! action_replay_is_type( ( void * ) time, action_replay_time_t_class() ))
+    )
+
     {
         return ( action_replay_time_t_return_t const ) { EINVAL, 0 };
     }
@@ -311,7 +325,11 @@ struct timespec action_replay_time_t_from_timeval( struct timeval const value )
 
 struct timespec action_replay_time_t_from_time_t( action_replay_time_t const * const value )
 {
-    if( NULL == value )
+    if
+    (
+        ( NULL == value )
+        || ( ! action_replay_is_type( ( void * ) value, action_replay_time_t_class() ))
+    )
     {
         return ( struct timespec const ) { 0, 0 };
     }

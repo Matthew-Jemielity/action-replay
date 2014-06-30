@@ -1,6 +1,7 @@
 #include "action_replay/args.h"
 #include "action_replay/error.h"
 #include "action_replay/object.h"
+#include "action_replay/object_oriented_programming.h"
 #include "action_replay/object_oriented_programming_super.h"
 #include "action_replay/return.h"
 #include "action_replay/stateful_object.h"
@@ -99,7 +100,7 @@ static inline action_replay_return_t action_replay_stateful_object_t_copier( voi
 
 static inline action_replay_args_t_return_t action_replay_stateful_object_t_args_func_t_args( action_replay_stateful_object_t const * const self )
 {
-    return ( NULL == self ) ?
+    return (( NULL == self ) || ( ! action_replay_is_type( ( void * ) self, action_replay_stateful_object_t_class() ))) ?
         ( action_replay_args_t_return_t const ) { EINVAL, action_replay_args_t_default_args() }
         :
         action_replay_args_t_copy( self->object_state->args )

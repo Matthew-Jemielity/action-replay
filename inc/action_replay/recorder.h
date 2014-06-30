@@ -5,10 +5,12 @@
 # include <action_replay/class.h>
 # include <action_replay/return.h>
 # include <action_replay/stateful_object.h>
+# include <action_replay/time.h>
 
 typedef struct action_replay_recorder_t_state_t action_replay_recorder_t_state_t;
 typedef struct action_replay_recorder_t action_replay_recorder_t;
-typedef action_replay_return_t ( * action_replay_recorder_t_func_t )( action_replay_recorder_t * const self );
+typedef action_replay_return_t ( * action_replay_recorder_t_start_func_t )( action_replay_recorder_t * const restrict self, action_replay_time_t const * const restrict zero_time );
+typedef action_replay_return_t ( * action_replay_recorder_t_stop_func_t )( action_replay_recorder_t * const self );
 
 struct action_replay_recorder_t
 {
