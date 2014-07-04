@@ -161,8 +161,8 @@ static action_replay_return_t action_replay_recorder_t_internal( action_replay_o
 }
 
 static action_replay_error_t action_replay_recorder_t_write_header( char const * const path_to_input_device, FILE * const output );
-static action_replay_return_t action_replay_recorder_t_start_func_t_start( action_replay_recorder_t * const restrict recorder, action_replay_time_t const * const restrict zero_time );
-static action_replay_return_t action_replay_recorder_t_stop_func_t_stop( action_replay_recorder_t * const recorder );
+static action_replay_return_t action_replay_recorder_t_start_func_t_start( action_replay_recorder_t * const restrict self, action_replay_time_t const * const restrict zero_time );
+static action_replay_return_t action_replay_recorder_t_stop_func_t_stop( action_replay_recorder_t * const self );
 
 static inline action_replay_return_t action_replay_recorder_t_constructor( void * const object, action_replay_args_t const args )
 {
