@@ -28,7 +28,7 @@ typedef struct
 }
 action_replay_time_t_args_t;
 
-static action_replay_stateful_return_t action_replay_time_t_state_t_new( action_replay_args_t const args )
+static action_replay_stateful_return_t action_replay_time_t_state_t_new( uint64_t const nanoseconds )
 {
     action_replay_stateful_return_t result;
 
@@ -39,10 +39,8 @@ static action_replay_stateful_return_t action_replay_time_t_state_t_new( action_
     }
     result.status = 0;
 
-    action_replay_time_t_args_t * const time_args = args.state;
     action_replay_time_t_state_t * const time_state = result.state;
-
-    time_state->nanoseconds = ( uint32_t const ) time_args->value.tv_sec * NANOSECONDS_IN_MICROSECOND * MICROSECONDS_IN_MILLISECOND * MILLISECONDS_IN_SECOND + ( uint32_t const ) time_args->value.tv_nsec;
+    time_state->nanoseconds = nanoseconds;
 
     return result;
 }
@@ -55,24 +53,20 @@ static action_replay_return_t action_replay_time_t_state_t_delete( action_replay
 
 action_replay_class_t const * action_replay_time_t_class( void );
 
-static action_replay_return_t action_replay_time_t_internal( action_replay_object_oriented_programming_super_operation_t const operation, action_replay_time_t * const restrict time, action_replay_time_t const * const restrict original_time, action_replay_args_t const args, action_replay_time_t_func_t const add, action_replay_time_t_func_t const sub, action_replay_time_t_conversion_func_t const nanoseconds, action_replay_time_t_conversion_func_t const microseconds, action_replay_time_t_conversion_func_t const milliseconds, action_replay_time_t_conversion_func_t const seconds )
+static action_replay_return_t action_replay_time_t_internal( action_replay_object_oriented_programming_super_operation_t const operation, action_replay_time_t * const restrict time, action_replay_time_t const * const restrict original_time, action_replay_args_t const args, uint64_t const nanoseconds_value, action_replay_time_t_func_t const set, action_replay_time_t_func_t const add, action_replay_time_t_func_t const sub, action_replay_time_t_conversion_func_t const nanoseconds, action_replay_time_t_conversion_func_t const microseconds, action_replay_time_t_conversion_func_t const milliseconds, action_replay_time_t_conversion_func_t const seconds )
 {
-    if( NULL == args.state )
-    {
-        return ( action_replay_return_t const ) { EINVAL };
-    }
-
     SUPER( operation, action_replay_time_t_class, time, original_time, args );
 
     action_replay_stateful_return_t result;
 
-    if( 0 != ( result = action_replay_time_t_state_t_new( args )).status )
+    if( 0 != ( result = action_replay_time_t_state_t_new( nanoseconds_value )).status )
     {
         SUPER( DESTRUCT, action_replay_time_t_class, time, NULL, args );
         return ( action_replay_return_t const ) { result.status };
     }
 
     time->time_state = result.state;
+    time->set = set;
     time->add = add;
     time->sub = sub;
     time->nanoseconds = nanoseconds;
@@ -83,6 +77,8 @@ static action_replay_return_t action_replay_time_t_internal( action_replay_objec
     return ( action_replay_return_t const ) { 0 };
 }
 
+static uint64_t action_replay_time_t_timespec_to_nanoseconds( struct timespec const value );
+static action_replay_return_t action_replay_time_t_func_t_set( action_replay_time_t * const self, struct timespec const value );
 static action_replay_return_t action_replay_time_t_func_t_add( action_replay_time_t * const self, struct timespec const value );
 static action_replay_return_t action_replay_time_t_func_t_sub( action_replay_time_t * const self, struct timespec const value );
 static action_replay_time_t_return_t action_replay_time_t_conversion_func_t_nanoseconds( action_replay_time_t const * const self );
@@ -92,7 +88,14 @@ static action_replay_time_t_return_t action_replay_time_t_conversion_func_t_seco
 
 static inline action_replay_return_t action_replay_time_t_constructor( void * const object, action_replay_args_t const args )
 {
-    return action_replay_time_t_internal( CONSTRUCT, object, NULL, args, action_replay_time_t_func_t_add, action_replay_time_t_func_t_sub, action_replay_time_t_conversion_func_t_nanoseconds, action_replay_time_t_conversion_func_t_microseconds, action_replay_time_t_conversion_func_t_milliseconds, action_replay_time_t_conversion_func_t_seconds );
+    if( NULL == args.state )
+    {
+        return ( action_replay_return_t const ) { EINVAL };
+    }
+
+    action_replay_time_t_args_t * const time_args = args.state;
+
+    return action_replay_time_t_internal( CONSTRUCT, object, NULL, args, action_replay_time_t_timespec_to_nanoseconds( time_args->value ), action_replay_time_t_func_t_set, action_replay_time_t_func_t_add, action_replay_time_t_func_t_sub, action_replay_time_t_conversion_func_t_nanoseconds, action_replay_time_t_conversion_func_t_microseconds, action_replay_time_t_conversion_func_t_milliseconds, action_replay_time_t_conversion_func_t_seconds );
 }
 
 static action_replay_return_t action_replay_time_t_destructor( void * const object )
@@ -125,11 +128,26 @@ static action_replay_return_t action_replay_time_t_copier( void * const restrict
         return ( action_replay_return_t const ) { args.status };
     }
 
-    action_replay_return_t const result = action_replay_time_t_internal( COPY, copy, original_time, args.args, original_time->add, original_time->sub, original_time->nanoseconds, original_time->microseconds, original_time->milliseconds, original_time->seconds );
+    action_replay_return_t const result = action_replay_time_t_internal( COPY, copy, original_time, args.args, original_time->time_state->nanoseconds, original_time->set, original_time->add, original_time->sub, original_time->nanoseconds, original_time->microseconds, original_time->milliseconds, original_time->seconds );
 
     action_replay_args_t_delete( args.args );
 
     return result;
+}
+
+static action_replay_return_t action_replay_time_t_func_t_set( action_replay_time_t * const self, struct timespec const value )
+{
+    if
+    (
+        ( NULL == self )
+        || ( ! action_replay_is_type( ( void * ) self, action_replay_time_t_class() ))
+    )
+    {
+        return ( action_replay_return_t const ) { EINVAL };
+    }
+
+    self->time_state->nanoseconds = action_replay_time_t_timespec_to_nanoseconds( value );
+    return ( action_replay_return_t const ) { 0 };
 }
 
 static action_replay_return_t action_replay_time_t_func_t_add( action_replay_time_t * const self, struct timespec const value )
@@ -143,7 +161,7 @@ static action_replay_return_t action_replay_time_t_func_t_add( action_replay_tim
         return ( action_replay_return_t const ) { EINVAL };
     }
 
-    uint64_t const added_value = ( uint32_t ) value.tv_sec * NANOSECONDS_IN_MICROSECOND * MICROSECONDS_IN_MILLISECOND * MILLISECONDS_IN_SECOND + ( uint32_t ) value.tv_nsec;
+    uint64_t const added_value = action_replay_time_t_timespec_to_nanoseconds( value );
 
     if(( UINT64_MAX - added_value ) < self->time_state->nanoseconds )
     {
@@ -165,7 +183,7 @@ static action_replay_return_t action_replay_time_t_func_t_sub( action_replay_tim
         return ( action_replay_return_t const ) { EINVAL };
     }
 
-    uint64_t const subbed_value = ( uint32_t ) value.tv_sec * NANOSECONDS_IN_MICROSECOND * MICROSECONDS_IN_MILLISECOND * MILLISECONDS_IN_SECOND + ( uint32_t ) value.tv_nsec;
+    uint64_t const subbed_value = action_replay_time_t_timespec_to_nanoseconds( value );
 
     if( subbed_value > self->time_state->nanoseconds )
     {
@@ -339,5 +357,10 @@ struct timespec action_replay_time_t_from_time_t( action_replay_time_t const * c
         ( time_t ) result.quot,
         ( long ) result.rem
     };
+}
+
+static inline uint64_t action_replay_time_t_timespec_to_nanoseconds( struct timespec const value )
+{
+    return ( uint32_t ) value.tv_sec * NANOSECONDS_IN_MICROSECOND * MICROSECONDS_IN_MILLISECOND * MILLISECONDS_IN_SECOND + ( uint32_t ) value.tv_nsec;
 }
 

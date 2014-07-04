@@ -12,6 +12,7 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <linux/input.h>
+#include <limits.h>
 #include <opa_primitives.h>
 #include <poll.h>
 #include <pthread.h>
@@ -287,10 +288,19 @@ static action_replay_return_t action_replay_recorder_t_stop_func_t_stop( action_
     return result;
 }
 
+action_replay_error_t action_replay_recorder_t_worker_safe_input_read( int fd, void * const buf, size_t const size );
+action_replay_error_t action_replay_recorder_t_worker_safe_output_write( struct input_event const event, action_replay_time_t * const restrict event_time, action_replay_time_t const * const restrict zero_time, FILE * const restrict output );
+
 static void * action_replay_recorder_worker( void * thread_state )
 {
     action_replay_recorder_t_state_t * const recorder_state = thread_state;
-    char const * const json = "\n{ \"time\": \"%llu\", \"type\": \"%hu\", \"code\": \"%hu\", \"value\": \"%u\" }";
+    action_replay_time_t * const event_time = action_replay_new( action_replay_time_t_class(), action_replay_time_t_args( action_replay_time_t_from_time_t( NULL )));
+
+    if( NULL == event_time )
+    {
+        return NULL;
+    }
+
     struct pollfd descriptors[ POLL_DESCRIPTORS_COUNT ] =
     {
         {
@@ -302,8 +312,6 @@ static void * action_replay_recorder_worker( void * thread_state )
             .events = POLLIN
         }
     };
-
-    (void) json;
 
     while( poll( descriptors, POLL_DESCRIPTORS_COUNT, INFINITE_WAIT ))
     {
@@ -320,16 +328,78 @@ static void * action_replay_recorder_worker( void * thread_state )
         {
             continue;
         }
-        /* TODO */
+
+        struct input_event event;
+        if( 0 != action_replay_recorder_t_worker_safe_input_read( descriptors[ POLL_INPUT_DESCRIPTOR ].fd, &event, sizeof( struct input_event )))
+        {
+            break;
+        }
+
+        if( 0 != action_replay_recorder_t_worker_safe_output_write( event, event_time, recorder_state->zero_time, recorder_state->output ))
+        {
+            break;
+        }
     }
+    action_replay_delete( ( void * ) event_time );
     return NULL;
+}
+
+action_replay_error_t action_replay_recorder_t_worker_safe_input_read( int fd, void * const buf, size_t const size )
+{
+    if( size > SSIZE_MAX )
+    {
+        return EINVAL;
+    }
+
+    ssize_t count = 0;
+    do
+    {
+        ssize_t read_result = read( fd, buf + count, size - count );
+        if( 0 == read_result )
+        {
+            /* EOF in input stream should not happen */
+            return EIO;
+        }
+        if( -1 == read_result )
+        {
+            return errno;
+        }
+        count += read_result;
+    }
+    while( count < ( ssize_t const ) size );
+
+    return 0;
+}
+
+action_replay_error_t action_replay_recorder_t_worker_safe_output_write( struct input_event const event, action_replay_time_t * const restrict event_time, action_replay_time_t const * const restrict zero_time, FILE * const restrict output )
+{
+    char const * const json = "\n{ \"time\": \"%llu\", \"type\": \"%hu\", \"code\": \"%hu\", \"value\": \"%d\" }";
+
+    action_replay_return_t const set_result = event_time->set( event_time, action_replay_time_t_from_timeval( event.time ));
+    if( 0 != set_result.status )
+    {
+        return set_result.status;
+    }
+
+    action_replay_return_t const sub_result = event_time->sub( event_time, action_replay_time_t_from_time_t( zero_time ));
+    if( 0 != sub_result.status )
+    {
+        return sub_result.status;
+    }
+
+    action_replay_time_t_return_t const conversion_result = event_time->nanoseconds( event_time );
+    if( 0 != conversion_result.status )
+    {
+        return conversion_result.status;
+    }
+
+    return ( 0 < fprintf( output, json, conversion_result.value, event.type, event.code, event.value )) ? 0 : EINVAL;
 }
 
 static inline action_replay_error_t action_replay_recorder_t_write_header( char const * const path_to_input_device, FILE * const output )
 {
     char const * const header_string = "{ \"file\": \"%s\" }";
-    fprintf( output, header_string, path_to_input_device );
-    return 0;
+    return ( 0 < fprintf( output, header_string, path_to_input_device )) ? 0 : EINVAL;
 }
 
 static inline action_replay_error_t action_replay_recorder_t_header_nop( char const * const path_to_input_device, FILE * const output )
