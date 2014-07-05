@@ -1,0 +1,8 @@
+#ifndef ACTION_REPLAY_PLAYER_H__
+# error "Add #include <action_replay/player.h>"
+#endif /* ACTION_REPLAY_PLAYER_H__ */
+
+action_replay_player_t_state_t * player_state;
+action_replay_player_t_func_t start;
+action_replay_player_t_func_t stop;
+
