@@ -1,0 +1,9 @@
+#ifndef ACTION_REPLAY_WORKQUEUE_H__
+# error "Add #include <action_replay/workqueue.h>"
+#endif /* ACTION_REPLAY_WORKQUEUE_H__ */
+
+action_replay_workqueue_t_state_t * workqueue_state;
+action_replay_workqueue_t_put_func_t put;
+action_replay_workqueue_t_func_t start;
+action_replay_workqueue_t_func_t stop;
+

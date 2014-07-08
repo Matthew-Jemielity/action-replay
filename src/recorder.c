@@ -44,7 +44,7 @@ action_replay_recorder_t_args_t;
 
 struct action_replay_recorder_t_state_t
 {
-    action_replay_time_t const * zero_time;
+    action_replay_time_t * zero_time;
     action_replay_worker_t * worker;
     FILE * input;
     FILE * output;
@@ -125,7 +125,7 @@ static action_replay_return_t action_replay_recorder_t_state_t_delete( action_re
     }
     
     action_replay_return_t const result = { action_replay_delete( ( void * ) recorder_state->worker ) };
-
+    /* zero_time known to be NULL */
     free( recorder_state );
     return result;
 }
