@@ -1,4 +1,4 @@
-#define _POSIX_C_SOURCE 200809L /* strntol */
+#define _POSIX_C_SOURCE 200809L /* strntol, fileno */
 #define JSMN_STRICT /* jsmn parses only valid JSON */
 
 #include "action_replay/args.h"
@@ -18,6 +18,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
+#include <unistd.h>
 
 #define HEADER_JSON_TOKENS_COUNT 3 /* header must be JSON: { "file": "<path>" } */
 
@@ -41,6 +43,7 @@ struct action_replay_player_t_state_t
     action_replay_worker_t * worker;
     action_replay_workqueue_t * queue;
     FILE * input;
+    FILE * output;
 };
 
 static void * action_replay_player_t_worker( void * thread_state );
@@ -101,7 +104,7 @@ static action_replay_return_t action_replay_player_t_state_t_delete( action_repl
     }
     player_state->queue = NULL;
     result.status = action_replay_delete( ( void * ) player_state->worker );
-    /* zero_time known to be NULL */
+    /* zero_time and output known to be cleaned up */
     free( player_state );
     return result;
 }
@@ -187,6 +190,8 @@ static action_replay_return_t action_replay_player_t_copier( void * const restri
     return result;
 }
 
+static FILE * action_replay_player_t_open_output_from_header( FILE * const input );
+
 static action_replay_return_t action_replay_player_t_start_func_t_start( action_replay_player_t * const restrict self, action_replay_time_t const * const restrict zero_time )
 {
     if
@@ -212,9 +217,15 @@ static action_replay_return_t action_replay_player_t_start_func_t_start( action_
             return result;
     }
 
+    if( NULL == ( self->player_state-> output = action_replay_player_t_open_output_from_header( self->player_state->input )))
+    {
+        result.status = EIO;
+        goto handle_open_output_error;
+    }
+
     if( NULL == ( self->player_state->zero_time = action_replay_copy( ( void * ) zero_time )))
     {
-        result = ( action_replay_return_t const ) { errno };
+        result.status = errno;
         goto handle_zero_time_copy_error;
     }
 
@@ -225,6 +236,11 @@ static action_replay_return_t action_replay_player_t_start_func_t_start( action_
     }
 
 handle_zero_time_copy_error:
+    if( 0 != result.status )
+    {
+        fclose( self->player_state->output );
+    }
+handle_open_output_error:
     self->player_state->worker->start_unlock( self->player_state->worker, ( 0 == result.status ));
     return result;
 }
@@ -261,17 +277,17 @@ static action_replay_return_t action_replay_player_t_stop_func_t_stop( action_re
     {
         action_replay_delete( ( void * ) ( self->player_state->zero_time ));
         self->player_state->zero_time = NULL;
+        fclose( self->player_state->output );
     }
 
     self->player_state->worker->stop_unlock( self->player_state->worker, ( 0 == result.status ));
     return result;
 }
 
-static FILE * action_replay_player_t_worker_safe_open_output_from_header( FILE * const input );
-
 typedef struct
 {
-    action_replay_time_t const * zero_time;
+    action_replay_time_t * zero_time;
+    FILE * output;
     uint64_t nanoseconds;
     uint16_t type;
     uint16_t code;
@@ -279,22 +295,16 @@ typedef struct
 }
 action_replay_player_t_worker_parse_state_t;
 
-action_replay_player_t_worker_parse_state_t * action_replay_player_t_worker_safe_parse_line( char * const restrict buffer, size_t const size, action_replay_time_t const * const restrict zero_time );
-void action_replay_player_t_queue_safe_process_item( void * const state );
+static action_replay_player_t_worker_parse_state_t * action_replay_player_t_parse_line( char * const restrict buffer, size_t const size, action_replay_time_t * const restrict zero_time, FILE * const restrict output );
+static void action_replay_player_t_process_item( void * const state );
 
 static void * action_replay_player_t_worker( void * thread_state )
 {
     action_replay_player_t_state_t * const player_state = thread_state;
-    FILE * const output = action_replay_player_t_worker_safe_open_output_from_header( player_state->input );
-
-    if( NULL == output )
-    {
-        return NULL;
-    }
 
     if( 0 != player_state->queue->start( player_state->queue ).status )
     {
-        goto handle_queue_start_error;
+        return NULL;
     }
 
     char * buffer = NULL;
@@ -302,7 +312,7 @@ static void * action_replay_player_t_worker( void * thread_state )
 
     while( 0 < getline( &buffer, &size, player_state->input ))
     {
-        action_replay_player_t_worker_parse_state_t * parse_state = action_replay_player_t_worker_safe_parse_line( buffer, size, player_state->zero_time );
+        action_replay_player_t_worker_parse_state_t * parse_state = action_replay_player_t_parse_line( buffer, size, player_state->zero_time, player_state->output );
 
         if( NULL == parse_state )
         {
@@ -310,7 +320,7 @@ static void * action_replay_player_t_worker( void * thread_state )
             break;
         }
 
-        if( 0 != player_state->queue->put( player_state->queue, action_replay_player_t_queue_safe_process_item, parse_state ). status )
+        if( 0 != player_state->queue->put( player_state->queue, action_replay_player_t_process_item, parse_state ).status )
         {
             free( parse_state );
             player_state->queue->stop( player_state->queue );
@@ -319,12 +329,10 @@ static void * action_replay_player_t_worker( void * thread_state )
     }
 
     free( buffer );
-handle_queue_start_error:
-    fclose( output );
     return NULL;
 }
 
-action_replay_player_t_worker_parse_state_t * action_replay_player_t_worker_safe_parse_line( char * const restrict buffer, size_t const size, action_replay_time_t const * const restrict zero_time )
+static action_replay_player_t_worker_parse_state_t * action_replay_player_t_parse_line( char * const restrict buffer, size_t const size, action_replay_time_t * const restrict zero_time, FILE * const restrict output )
 {
     jsmn_parser parser;
     jsmntok_t tokens[ INPUT_JSON_TOKENS_COUNT ];
@@ -349,6 +357,7 @@ action_replay_player_t_worker_parse_state_t * action_replay_player_t_worker_safe
     }
 
     parse_state->zero_time = zero_time;
+    parse_state->output = output;
     parse_state->nanoseconds = strtoull( buffer + tokens[ INPUT_JSON_TIME_TOKEN ].start, NULL, 10 );
     parse_state->type = ( uint16_t ) strtoul( buffer + tokens[ INPUT_JSON_TYPE_TOKEN ].start, NULL, 10 );
     parse_state->code = ( uint16_t ) strtoul( buffer + tokens[ INPUT_JSON_CODE_TOKEN ].start, NULL, 10 );
@@ -357,14 +366,32 @@ action_replay_player_t_worker_parse_state_t * action_replay_player_t_worker_safe
     return parse_state;
 }
 
-void action_replay_player_t_queue_safe_process_item( void * const state )
+static void action_replay_player_t_process_item( void * const state )
 {
     action_replay_player_t_worker_parse_state_t * const parse_state = state;
+    struct input_event event = {
+        .type = parse_state->type,
+        .code = parse_state->code,
+        .value = parse_state->value
+    };
 
-    printf( "type: %hu, code: %hu, value: %d\n", parse_state->type, parse_state->code, parse_state->value );
+    if( 0 < parse_state->nanoseconds )
+    {
+        parse_state->zero_time->add( parse_state->zero_time, action_replay_time_t_from_nanoseconds( parse_state->nanoseconds ));
+        action_replay_time_t * const time = action_replay_new( action_replay_time_t_class(), action_replay_time_t_args( action_replay_time_t_from_time_t( parse_state->zero_time )));
+        if( NULL != time )
+        {
+            time->sub( time, action_replay_time_t_now() );
+        }
+        struct timespec const sleep_time = action_replay_time_t_from_time_t( time );
+
+        nanosleep( &sleep_time, NULL );
+    }
+
+    write( fileno( parse_state->output ), &event, sizeof( struct input_event ));
 }
 
-static FILE * action_replay_player_t_worker_safe_open_output_from_header( FILE * const input )
+static FILE * action_replay_player_t_open_output_from_header( FILE * const input )
 {
     char * buffer = NULL;
     FILE * result = NULL;

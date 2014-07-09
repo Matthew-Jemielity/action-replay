@@ -305,8 +305,8 @@ handle_write_error:
     return result;
 }
 
-action_replay_error_t action_replay_recorder_t_worker_safe_input_read( int fd, void * const buf, size_t const size );
-action_replay_error_t action_replay_recorder_t_worker_safe_output_write( struct input_event const event, action_replay_time_t * const restrict event_time, action_replay_time_t const * const restrict zero_time, FILE * const restrict output );
+static action_replay_error_t action_replay_recorder_t_worker_safe_input_read( int fd, void * const buf, size_t const size );
+static action_replay_error_t action_replay_recorder_t_worker_safe_output_write( struct input_event const event, action_replay_time_t * const restrict event_time, action_replay_time_t * const restrict zero_time, FILE * const restrict output );
 
 static void * action_replay_recorder_t_worker( void * thread_state )
 {
@@ -361,7 +361,7 @@ static void * action_replay_recorder_t_worker( void * thread_state )
     return NULL;
 }
 
-action_replay_error_t action_replay_recorder_t_worker_safe_input_read( int fd, void * const buf, size_t const size )
+static action_replay_error_t action_replay_recorder_t_worker_safe_input_read( int fd, void * const buf, size_t const size )
 {
     if( size > SSIZE_MAX )
     {
@@ -388,7 +388,7 @@ action_replay_error_t action_replay_recorder_t_worker_safe_input_read( int fd, v
     return 0;
 }
 
-action_replay_error_t action_replay_recorder_t_worker_safe_output_write( struct input_event const event, action_replay_time_t * const restrict event_time, action_replay_time_t const * const restrict zero_time, FILE * const restrict output )
+static action_replay_error_t action_replay_recorder_t_worker_safe_output_write( struct input_event const event, action_replay_time_t * const restrict event_time, action_replay_time_t * const restrict zero_time, FILE * const restrict output )
 {
     char const * const json = "\n{ \"time\": %" PRIu64 ", \"type\": %hu, \"code\": %hu, \"value\": %d }";
 
@@ -399,6 +399,10 @@ action_replay_error_t action_replay_recorder_t_worker_safe_output_write( struct 
         return result.status;
     }
     if( 0 != ( result = event_time->sub( event_time, action_replay_time_t_from_time_t( zero_time ))).status )
+    {
+        return result.status;
+    }
+    if( 0 != ( result = zero_time->add( zero_time, action_replay_time_t_from_time_t( event_time ))).status )
     {
         return result.status;
     }

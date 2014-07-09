@@ -33,6 +33,7 @@ action_replay_args_t action_replay_time_t_args( struct timespec const value );
 struct timespec action_replay_time_t_now( void );
 struct timespec action_replay_time_t_from_timeval( struct timeval const value );
 struct timespec action_replay_time_t_from_time_t( action_replay_time_t const * const value );
+struct timespec action_replay_time_t_from_nanoseconds( uint64_t const value );
 
 #endif /* ACTION_REPLAY_TIME_H__ */
 

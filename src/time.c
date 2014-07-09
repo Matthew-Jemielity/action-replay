@@ -352,7 +352,12 @@ struct timespec action_replay_time_t_from_time_t( action_replay_time_t const * c
         return ( struct timespec const ) { 0, 0 };
     }
 
-    lldiv_t const result = lldiv( value->time_state->nanoseconds, NANOSECONDS_IN_MICROSECOND * MICROSECONDS_IN_MILLISECOND * MILLISECONDS_IN_SECOND );
+    return action_replay_time_t_from_nanoseconds( value->time_state->nanoseconds );
+}
+
+struct timespec action_replay_time_t_from_nanoseconds( uint64_t const value )
+{
+    lldiv_t const result = lldiv( value, NANOSECONDS_IN_MICROSECOND * MICROSECONDS_IN_MILLISECOND * MILLISECONDS_IN_SECOND );
     return ( struct timespec const ) {
         ( time_t ) result.quot,
         ( long ) result.rem
