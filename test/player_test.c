@@ -17,7 +17,9 @@ int main(int argc, char ** args)
         assert( NULL != zero_time );
         assert( 0 == ( player->start(player, zero_time)).status );
         assert( 0 == action_replay_delete( ( void * ) zero_time ));
-	sleep( 3 );
+        puts( "sleeping for 10 s" );
+	sleep( 10 );
+        puts( "waking up, stopping player" );
         assert( 0 == ( player->stop( player )).status );
         assert( 0 == action_replay_delete( ( void * ) player ));
 	return 0;

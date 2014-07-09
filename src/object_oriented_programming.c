@@ -4,6 +4,7 @@
 #include <action_replay/object.h>
 #include <action_replay/object_oriented_programming.h>
 #include <action_replay/return.h>
+#include <errno.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdlib.h>
@@ -25,7 +26,7 @@ void * action_replay_new( action_replay_class_t const * const _class, action_rep
     action_replay_object_t * const _new = object;
     _new->_class = _class;
 
-    if( 0 == _class->constructor( object, args ).status )
+    if( 0 == ( errno = _class->constructor( object, args ).status ))
     {
         action_replay_args_t_delete( args );
         return object;
@@ -69,7 +70,7 @@ void * action_replay_copy( action_replay_object_t const * const object )
     action_replay_object_t * const _copy = copy;
     _copy->_class = object->_class;
 
-    if( 0 == object->_class->copier( copy, object ).status )
+    if( 0 == ( errno = object->_class->copier( copy, object ).status ))
     {
         return copy;
     }

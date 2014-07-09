@@ -57,7 +57,7 @@ static action_replay_stateful_return_t action_replay_workqueue_t_state_t_new( vo
 
     if( NULL == ( workqueue_state->worker = action_replay_new( action_replay_worker_t_class(), action_replay_worker_t_args( action_replay_workqueue_t_process_queue ))))
     {
-        result.status = ENOMEM;
+        result.status = errno;
         goto handle_worker_new_error;
     }
     if( 0 != ( result.status = pthread_cond_init( &( workqueue_state->condition ), NULL )))
@@ -85,7 +85,13 @@ handle_worker_new_error:
 
 static action_replay_return_t action_replay_workqueue_t_state_t_delete( action_replay_workqueue_t_state_t * const workqueue_state )
 {
-    action_replay_return_t result;
+    action_replay_return_t result = { action_replay_delete( ( void * ) workqueue_state->worker ) };
+
+    if( 0 != result.status )
+    {
+        return result;
+    }
+    workqueue_state->worker = NULL;
 
     /* stop() called by destructor, no thread is waiting */
     if( 0 != ( result.status = pthread_cond_destroy( &( workqueue_state->condition ))))
@@ -98,8 +104,6 @@ static action_replay_return_t action_replay_workqueue_t_state_t_delete( action_r
     {
         return result;
     }
-
-    result.status = action_replay_delete( ( void * ) workqueue_state->worker );
 
     free( workqueue_state );
     return ( action_replay_return_t const ) { 0 };
@@ -287,6 +291,7 @@ static void * action_replay_workqueue_t_process_queue( void * state )
             pthread_cond_wait( &( workqueue_state->condition ), &( workqueue_state->mutex ));
             if( WORKQUEUE_STOP == * ( run_flag = OPA_load_ptr( &( workqueue_state->run_flag ))))
             {
+                pthread_mutex_unlock( &( workqueue_state->mutex ));
                 goto handle_stop_queue;
             }
         }

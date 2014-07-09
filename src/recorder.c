@@ -1,4 +1,5 @@
 #define _POSIX_C_SOURCE 200809L /* fileno, strndup */
+#define __STDC_FORMAT_MACROS
 
 #include "action_replay/args.h"
 #include "action_replay/error.h"
@@ -12,6 +13,7 @@
 #include "action_replay/worker.h"
 #include <errno.h>
 #include <fcntl.h>
+#include <inttypes.h>
 #include <linux/input.h>
 #include <limits.h>
 #include <poll.h>
@@ -87,7 +89,7 @@ static action_replay_stateful_return_t action_replay_recorder_t_state_t_new( act
 
     if( NULL == ( recorder_state->worker = action_replay_new( action_replay_worker_t_class(), action_replay_worker_t_args( action_replay_recorder_t_worker ))))
     {
-        result.status = ENOMEM;
+        result.status = errno;
         goto handle_worker_new_error;
     }
 
@@ -113,6 +115,14 @@ handle_path_to_input_device_open_error:
 
 static action_replay_return_t action_replay_recorder_t_state_t_delete( action_replay_recorder_t_state_t * const recorder_state )
 {
+    action_replay_error_t const error = { action_replay_delete( ( void * ) recorder_state->worker ) };
+
+    if( 0 != error )
+    {
+        return ( action_replay_return_t const ) { error };
+    }
+    recorder_state->worker = NULL;
+
     if
     (
         ( -1 == close( recorder_state->pipe_fd[ PIPE_READ ] ))
@@ -124,10 +134,9 @@ static action_replay_return_t action_replay_recorder_t_state_t_delete( action_re
         return ( action_replay_return_t const ) { errno };
     }
     
-    action_replay_return_t const result = { action_replay_delete( ( void * ) recorder_state->worker ) };
     /* zero_time known to be NULL */
     free( recorder_state );
-    return result;
+    return ( action_replay_return_t const ) { 0 };
 }
 
 action_replay_class_t const * action_replay_recorder_t_class( void );
@@ -241,7 +250,7 @@ static action_replay_return_t action_replay_recorder_t_start_func_t_start( actio
 
     if( NULL == ( self->recorder_state->zero_time = action_replay_copy( ( void * ) zero_time )))
     {
-        result = ( action_replay_return_t const ) { ENOMEM };
+        result = ( action_replay_return_t const ) { errno };
         goto handle_zero_time_copy_error;
     }
 
@@ -381,7 +390,7 @@ action_replay_error_t action_replay_recorder_t_worker_safe_input_read( int fd, v
 
 action_replay_error_t action_replay_recorder_t_worker_safe_output_write( struct input_event const event, action_replay_time_t * const restrict event_time, action_replay_time_t const * const restrict zero_time, FILE * const restrict output )
 {
-    char const * const json = "\n{ \"time\": \"%llu\", \"type\": \"%hu\", \"code\": \"%hu\", \"value\": \"%d\" }";
+    char const * const json = "\n{ \"time\": %" PRIu64 ", \"type\": %hu, \"code\": %hu, \"value\": %d }";
 
     action_replay_return_t result;
 
