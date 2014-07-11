@@ -1,31 +1,37 @@
+# test keyboard events
+# writes the string "Test" (without quotes)
+# change the event device as appropriate
 { "file": "/dev/input/event1" }
-{ "time": 75773552, "type": 4, "code": 4, "value": 28 }
-{ "time": 0, "type": 1, "code": 28, "value": 0 }
-{ "time": 0, "type": 0, "code": 0, "value": 0 }
+# shift on
 { "time": 280586000, "type": 4, "code": 4, "value": 54 }
 { "time": 0, "type": 1, "code": 54, "value": 1 }
 { "time": 0, "type": 0, "code": 0, "value": 0 }
+# T
 { "time": 112822000, "type": 4, "code": 4, "value": 20 }
 { "time": 0, "type": 1, "code": 20, "value": 1 }
 { "time": 0, "type": 0, "code": 0, "value": 0 }
 { "time": 78730000, "type": 4, "code": 4, "value": 20 }
 { "time": 0, "type": 1, "code": 20, "value": 0 }
 { "time": 0, "type": 0, "code": 0, "value": 0 }
+# shift off
 { "time": 92065000, "type": 4, "code": 4, "value": 54 }
 { "time": 0, "type": 1, "code": 54, "value": 0 }
 { "time": 0, "type": 0, "code": 0, "value": 0 }
+# e
 { "time": 48683000, "type": 4, "code": 4, "value": 18 }
 { "time": 0, "type": 1, "code": 18, "value": 1 }
 { "time": 0, "type": 0, "code": 0, "value": 0 }
 { "time": 62859000, "type": 4, "code": 4, "value": 18 }
 { "time": 0, "type": 1, "code": 18, "value": 0 }
 { "time": 0, "type": 0, "code": 0, "value": 0 }
+# s
 { "time": 149563000, "type": 4, "code": 4, "value": 31 }
 { "time": 0, "type": 1, "code": 31, "value": 1 }
 { "time": 0, "type": 0, "code": 0, "value": 0 }
 { "time": 70783000, "type": 4, "code": 4, "value": 31 }
 { "time": 0, "type": 1, "code": 31, "value": 0 }
 { "time": 0, "type": 0, "code": 0, "value": 0 }
+# t
 { "time": 103393000, "type": 4, "code": 4, "value": 20 }
 { "time": 0, "type": 1, "code": 20, "value": 1 }
 { "time": 0, "type": 0, "code": 0, "value": 0 }

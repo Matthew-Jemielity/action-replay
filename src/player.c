@@ -24,6 +24,8 @@
 #include <time.h>
 #include <unistd.h>
 
+#define COMMENT_SYMBOL '#'
+
 #define HEADER_JSON_TOKENS_COUNT 3 /* header must be JSON: { "file": "<path>" } */
 
 #define INPUT_JSON_TOKENS_COUNT 9 /* input line must be JSON: { "time": <num>, "type": <num>, "code": <num>, "value": <num> } */
@@ -343,6 +345,11 @@ static void * action_replay_player_t_worker( void * thread_state )
 
     while( 0 < getline( &buffer, &size, player_state->input ))
     {
+        if( COMMENT_SYMBOL == buffer[ 0 ] )
+        {
+            continue;
+        }
+
         action_replay_player_t_worker_parse_state_t * parse_state = action_replay_player_t_parse_line( buffer, size, player_state->zero_time, player_state->output );
 
         if( NULL == parse_state )
@@ -435,11 +442,15 @@ static FILE * action_replay_player_t_open_output_from_header( FILE * const input
     FILE * result = NULL;
     size_t size = 0;
 
-    if( 0 > getline( &buffer, &size, input ))
+    do
     {
-        action_replay_log( "%s: failure reading header from input file\n", __func__ );
-        return NULL;
+        if( 0 > getline( &buffer, &size, input ))
+        {
+            action_replay_log( "%s: failure reading header from input file\n", __func__ );
+            return NULL;
+        }
     }
+    while( COMMENT_SYMBOL == buffer[ 0 ] );
 
     jsmn_parser parser;
     jsmntok_t tokens[ HEADER_JSON_TOKENS_COUNT ];
