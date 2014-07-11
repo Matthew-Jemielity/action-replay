@@ -1,5 +1,6 @@
 #include "action_replay/args.h"
 #include "action_replay/error.h"
+#include "action_replay/log.h"
 #include "action_replay/object.h"
 #include "action_replay/object_oriented_programming.h"
 #include "action_replay/object_oriented_programming_super.h"
@@ -186,6 +187,7 @@ static action_replay_return_t action_replay_workqueue_t_put_func_t_put( action_r
 
     action_replay_return_t result = { 0 };
 
+    action_replay_log( "%s: workqueue %p entering critical section\n", __func__, self );
     /*
      * put() and queue flushing block must be serialized
      * otherwise we could leak memory
@@ -196,6 +198,7 @@ static action_replay_return_t action_replay_workqueue_t_put_func_t_put( action_r
     /* if after queue flush, this will always be true */
     if( WORKQUEUE_STOP == * ( run_flag = OPA_load_ptr( &( self->workqueue_state->run_flag ))))
     {
+        action_replay_log( "%s: workqueue %p cannot handle payload, it was ordered to stop\n", __func__, self );
         goto handle_stop_queue;
     }
 
@@ -209,10 +212,12 @@ static action_replay_return_t action_replay_workqueue_t_put_func_t_put( action_r
     item->payload = payload;
     item->state = state;
     OPA_Queue_enqueue( &( self->workqueue_state->queue ), item, action_replay_workqueue_t_item_t, header );
+    action_replay_log( "%s: payload enqueued\n", __func__ );
 
     result = ( action_replay_return_t const ) { pthread_cond_signal( &( self->workqueue_state->condition )) };
 handle_stop_queue:
     pthread_mutex_unlock( &( self->workqueue_state->mutex ));
+    action_replay_log( "%s: workqueue %p exited critical section\n", __func__ );
 
     return result;
 }
@@ -283,6 +288,7 @@ static void * action_replay_workqueue_t_process_queue( void * state )
     action_replay_workqueue_t_state_t * const workqueue_state = state;
     action_replay_workqueue_t_run_flag_t const * run_flag;
 
+    action_replay_log( "%s: workqueue processing thread %p started\n", __func__, state );
     while( WORKQUEUE_CONTINUE == * ( run_flag = OPA_load_ptr( &( workqueue_state->run_flag ))))
     {
         pthread_mutex_lock( &( workqueue_state->mutex ));
@@ -291,6 +297,7 @@ static void * action_replay_workqueue_t_process_queue( void * state )
             pthread_cond_wait( &( workqueue_state->condition ), &( workqueue_state->mutex ));
             if( WORKQUEUE_STOP == * ( run_flag = OPA_load_ptr( &( workqueue_state->run_flag ))))
             {
+                action_replay_log( "%s: workqueue processing thread %p ordered to stop\n", __func__, state );
                 pthread_mutex_unlock( &( workqueue_state->mutex ));
                 goto handle_stop_queue;
             }
@@ -304,6 +311,7 @@ static void * action_replay_workqueue_t_process_queue( void * state )
         free( item->state );
         free( item );
     }
+    action_replay_log( "%s: workqueue processing thread %p main loop finished\n", __func__, state );
 
 handle_stop_queue:
     pthread_mutex_lock( &( workqueue_state->mutex ));
@@ -317,7 +325,7 @@ handle_stop_queue:
         free( item );
     }
     pthread_mutex_unlock( &( workqueue_state->mutex ));
-
+    action_replay_log( "%s: workqueue processing thread %p exiting\n", __func__, state );
     return NULL;
 }
 

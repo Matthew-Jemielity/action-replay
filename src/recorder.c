@@ -3,6 +3,7 @@
 
 #include "action_replay/args.h"
 #include "action_replay/error.h"
+#include "action_replay/log.h"
 #include "action_replay/object_oriented_programming.h"
 #include "action_replay/object_oriented_programming_super.h"
 #include "action_replay/recorder.h"
@@ -95,6 +96,7 @@ static action_replay_stateful_return_t action_replay_recorder_t_state_t_new( act
 
     if( 0 == ( result.status = header_operation( recorder_args->path_to_input_device, recorder_state->output )))
     {
+        action_replay_log( "%s: %s opened as %p\n", __func__, recorder_args->path_to_input_device, recorder_state->input );
         recorder_state->zero_time = NULL;
         return result;
     }
@@ -238,30 +240,39 @@ static action_replay_return_t action_replay_recorder_t_start_func_t_start( actio
 
     action_replay_return_t result;
 
+    action_replay_log( "%s: locking worker before start\n", __func__ );
     switch(( result = self->recorder_state->worker->start_lock( self->recorder_state->worker )).status )
     {
         case 0:
             break;
         case EALREADY:
+            action_replay_log( "%s: worker already started\n", __func__ );
             return ( action_replay_return_t const ) { 0 };
         default:
+            action_replay_log( "%s: failure locking worker, errno = %d\n", __func__, result.status );
             return result;
     }
+    action_replay_log( "%s: worker locked\n", __func__ );
 
     if( NULL == ( self->recorder_state->zero_time = action_replay_copy( ( void * ) zero_time )))
     {
+        action_replay_log( "%s: failure allocating zero_time object\n", __func__ );
         result = ( action_replay_return_t const ) { errno };
         goto handle_zero_time_copy_error;
     }
 
+    action_replay_log( "%s: starting worker\n", __func__ );
     if( 0 != ( result = self->recorder_state->worker->start( self->recorder_state->worker, self->recorder_state )).status )
     {
+        action_replay_log( "%s: failure starting worker\n", __func__ );
         action_replay_delete( ( void * ) ( self->recorder_state->zero_time ));
         self->recorder_state->zero_time = NULL;
     }
 
 handle_zero_time_copy_error:
+    action_replay_log( "%s: unlocking worker\n", __func__ );
     self->recorder_state->worker->start_unlock( self->recorder_state->worker, ( 0 == result.status ));
+    action_replay_log( "%s: worker unlocked\n", __func__ );
     return result;
 }
 
@@ -278,30 +289,39 @@ static action_replay_return_t action_replay_recorder_t_stop_func_t_stop( action_
 
     action_replay_return_t result;
 
+    action_replay_log( "%s: locking worker before stopping", __func__ );
     switch(( result = self->recorder_state->worker->stop_lock( self->recorder_state->worker )).status )
     {
         case 0:
             break;
         case EALREADY:
+            action_replay_log( "%s: worker already stopped\n", __func__ );
             return ( action_replay_return_t const ) { 0 };
         default:
+            action_replay_log( "%s: failure locking worker, errno = %d\n", __func__, result.status );
             return result;
     }
+    action_replay_log( "%s: worker locked\n", __func__ );
 
     if( 1 > write( self->recorder_state->pipe_fd[ PIPE_WRITE ], " ", 1 ) /* force exit from poll */ )
     {
+        action_replay_log( "%s: failure forcing the worker thread to wake up\n", __func__ );
         result.status = errno;
         goto handle_write_error;
     }
     
+    action_replay_log( "%s: waiting for worker to quit\n", __func__ );
     if( 0 == ( result = self->recorder_state->worker->stop( self->recorder_state->worker )).status )
     {
+        action_replay_log( "%s: success stopping worker\n", __func__ );
         action_replay_delete( ( void * ) ( self->recorder_state->zero_time ));
         self->recorder_state->zero_time = NULL;
     }
 
 handle_write_error:
+    action_replay_log( "%s: unlocking worker\n", __func__ );
     self->recorder_state->worker->stop_unlock( self->recorder_state->worker, ( 0 == result.status ));
+    action_replay_log( "%s: worker unlockec\n", __func__ );
     return result;
 }
 
@@ -330,34 +350,44 @@ static void * action_replay_recorder_t_worker( void * thread_state )
         }
     };
 
+    action_replay_log( "%s: worker set up, waiting for events from %p\n", __func__, recorder_state->input );
     while( poll( descriptors, POLL_DESCRIPTORS_COUNT, INFINITE_WAIT ))
     {
+        if( POLLIN == ( descriptors[ POLL_RUN_FLAG_DESCRIPTOR ].revents & POLLIN ))
+        {
+            action_replay_log( "%s: worker ordered to stop polling for events from %p\n", __func__, recorder_state->input );
+            break;
+        }
         if
         (
-            ( POLLIN == ( descriptors[ POLL_RUN_FLAG_DESCRIPTOR ].revents & POLLIN ))
-            || ( 0 != ( descriptors[ POLL_RUN_FLAG_DESCRIPTOR ].revents & ( POLLERR | POLLHUP | POLLNVAL )))
+            ( 0 != ( descriptors[ POLL_RUN_FLAG_DESCRIPTOR ].revents & ( POLLERR | POLLHUP | POLLNVAL )))
             || ( 0 != ( descriptors[ POLL_INPUT_DESCRIPTOR ].revents & ( POLLERR | POLLHUP | POLLNVAL )))
         )
         {
+            action_replay_log( "%s: failure polling for descriptor\n", __func__ );
             break;
         }
         if( POLLIN != ( descriptors[ POLL_INPUT_DESCRIPTOR ].revents & POLLIN ))
         {
             continue;
         }
+        action_replay_log( "%s: worker handles event from %p\n", __func__, recorder_state->input );
 
         struct input_event event;
         if( 0 != action_replay_recorder_t_worker_safe_input_read( descriptors[ POLL_INPUT_DESCRIPTOR ].fd, &event, sizeof( struct input_event )))
         {
+            action_replay_log( "%s: failure reading from %p\n", __func__, recorder_state->input );
             break;
         }
 
         if( 0 != action_replay_recorder_t_worker_safe_output_write( event, event_time, recorder_state->zero_time, recorder_state->output ))
         {
+            action_replay_log( "%s: failure writing entry to %p\n", __func__, recorder_state->output );
             break;
         }
     }
     action_replay_delete( ( void * ) event_time );
+    action_replay_log( "%s: worker stops polling from %p\n", __func__, recorder_state->input );
     return NULL;
 }
 
@@ -365,6 +395,7 @@ static action_replay_error_t action_replay_recorder_t_worker_safe_input_read( in
 {
     if( size > SSIZE_MAX )
     {
+        action_replay_log( "%s: requested size is invalid\n", __func__ );
         return EINVAL;
     }
 

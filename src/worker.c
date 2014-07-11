@@ -1,5 +1,6 @@
 #include "action_replay/args.h"
 #include "action_replay/error.h"
+#include "action_replay/log.h"
 #include "action_replay/object_oriented_programming.h"
 #include "action_replay/object_oriented_programming_super.h"
 #include "action_replay/return.h"
@@ -183,6 +184,7 @@ static action_replay_return_t action_replay_worker_t_func_t_start_lock( action_r
         case WORKER_STARTING:
             /* fall through */
         case WORKER_STOPPING:
+            action_replay_log( "%s: in transition state, cannot continue\n", __func__ );
             return ( action_replay_return_t const ) { EBUSY };
         case WORKER_STARTED:
             return ( action_replay_return_t const ) { EALREADY };
@@ -208,6 +210,7 @@ static action_replay_return_t action_replay_worker_t_start_func_t_start( action_
     switch( * worker_status )
     {
         case WORKER_STARTING:
+            action_replay_log( "%s: creating thread\n", __func__ );
             return ( action_replay_return_t const ) { pthread_create( &( self->worker_state->worker ), NULL, self->worker_state->thread_function, state ) };
         case WORKER_STARTED:
             return ( action_replay_return_t const ) { EALREADY };
@@ -230,6 +233,8 @@ static action_replay_return_t action_replay_worker_t_unlock_func_t_start_unlock(
     {
         return ( action_replay_return_t const ) { EINVAL };
     }
+
+    action_replay_log( "%s: unlocking with condition = %d\n", __func__, ( int ) successful );
 
     action_replay_worker_t_worker_status_t const * const worker_status = OPA_cas_ptr( &( self->worker_state->status ), &worker_starting, ( successful ) ? &worker_started : &worker_stopped );
     switch( * worker_status )
@@ -264,6 +269,7 @@ static action_replay_return_t action_replay_worker_t_func_t_stop_lock( action_re
         case WORKER_STARTING:
             /* fall through */
         case WORKER_STOPPING:
+            action_replay_log( "%s: in transition, cannot continue\n", __func__ );
             return ( action_replay_return_t const ) { EBUSY };
         case WORKER_STARTED:
             return ( action_replay_return_t const ) { 0 };
@@ -289,6 +295,7 @@ static action_replay_return_t action_replay_worker_t_func_t_stop( action_replay_
     switch( * worker_status )
     {
         case WORKER_STOPPING:
+            action_replay_log( "%s: joining thread\n", __func__ );
             return ( action_replay_return_t const ) { pthread_join( self->worker_state->worker, NULL ) }; /* wait for thread to finish using state */
         case WORKER_STOPPED:
             return ( action_replay_return_t const ) { EALREADY };
@@ -311,6 +318,8 @@ static action_replay_return_t action_replay_worker_t_unlock_func_t_stop_unlock( 
     {
         return ( action_replay_return_t const ) { EINVAL };
     }
+
+    action_replay_log( "%s: unlocking with condition = %d\n", __func__, ( int ) successful );
 
     action_replay_worker_t_worker_status_t const * const worker_status = OPA_cas_ptr( &( self->worker_state->status ), &worker_stopping, ( successful ) ? &worker_stopped : &worker_started );
     switch( * worker_status )

@@ -2,6 +2,7 @@
 
 #include "action_replay/args.h"
 #include "action_replay/class.h"
+#include "action_replay/log.h"
 #include "action_replay/object_oriented_programming.h"
 #include "action_replay/object_oriented_programming_super.h"
 #include "action_replay/return.h"
@@ -165,6 +166,7 @@ static action_replay_return_t action_replay_time_t_func_t_add( action_replay_tim
 
     if(( UINT64_MAX - added_value ) < self->time_state->nanoseconds )
     {
+        action_replay_log( "%s: cannot add - resulting value would overflow\n", __func__ );
         return ( action_replay_return_t const ) { E2BIG };
     }
 
@@ -187,6 +189,7 @@ static action_replay_return_t action_replay_time_t_func_t_sub( action_replay_tim
 
     if( subbed_value > self->time_state->nanoseconds )
     {
+        action_replay_log( "%s: substracting later time from earlier time is not allowed\n", __func__ );
         return ( action_replay_return_t const ) { E2BIG };
     }
 
