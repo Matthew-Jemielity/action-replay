@@ -15,10 +15,7 @@ int main(int argc, char ** args)
         assert( 0 == action_replay_log_init( stderr ).status );
 	action_replay_player_t * player = action_replay_new( action_replay_player_t_class(), action_replay_player_t_args( args[ 1 ] ));
         assert( NULL != player );
-        action_replay_time_t * const zero_time = action_replay_new( action_replay_time_t_class(), action_replay_time_t_args( action_replay_time_t_now() ));
-        assert( NULL != zero_time );
-        assert( 0 == ( player->start(player, zero_time)).status );
-        assert( 0 == action_replay_delete( ( void * ) zero_time ));
+        assert( 0 == ( player->start(player)).status );
         puts( "sleeping for 10 s" );
 	sleep( 10 );
         puts( "waking up, stopping player" );

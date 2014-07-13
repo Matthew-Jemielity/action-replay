@@ -429,7 +429,6 @@ static action_replay_error_t action_replay_recorder_t_worker_safe_output_write( 
     {
         return result.status;
     }
-    action_replay_log( "%s: event: %" PRIu64 ", %" PRIu64 ", %hu, %hu, %d\n", __func__, event.time.tv_sec, event.time.tv_usec, event.type, event.code, event.value );
     if( 0 != ( result = event_time->sub( event_time, action_replay_time_t_from_time_t( zero_time ))).status )
     {
         return result.status;

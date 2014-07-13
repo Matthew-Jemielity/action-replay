@@ -45,7 +45,6 @@ action_replay_player_t_args_t;
 
 struct action_replay_player_t_state_t
 {
-    action_replay_time_t * zero_time;
     action_replay_worker_t * worker;
     action_replay_workqueue_t * queue;
     FILE * input;
@@ -94,7 +93,6 @@ static action_replay_stateful_return_t action_replay_player_t_state_t_new( actio
     if( NULL != ( player_state->queue = action_replay_new( action_replay_workqueue_t_class(), action_replay_workqueue_t_args() )))
     {
         action_replay_log( "%s: %s opened as %p\n", __func__, player_args->path_to_input, player_state->input );
-        player_state->zero_time = NULL;
         OPA_store_ptr( &( player_state->run_flag ), &worker_stop );
         return result;
     }
@@ -126,14 +124,14 @@ static action_replay_return_t action_replay_player_t_state_t_delete( action_repl
     {
         return ( action_replay_return_t const ) { errno };
     }
-    /* zero_time and output known to be cleaned up */
+    /* output known to be cleaned up */
     free( player_state );
     return result;
 }
 
 action_replay_class_t const * action_replay_player_t_class( void );
 
-static action_replay_return_t action_replay_player_t_internal( action_replay_object_oriented_programming_super_operation_t const operation, action_replay_player_t * const restrict player, action_replay_player_t const * const restrict original_player, action_replay_args_t const args, action_replay_player_t_start_func_t const start, action_replay_player_t_stop_func_t const stop, action_replay_player_t_stop_func_t const join )
+static action_replay_return_t action_replay_player_t_internal( action_replay_object_oriented_programming_super_operation_t const operation, action_replay_player_t * const restrict player, action_replay_player_t const * const restrict original_player, action_replay_args_t const args, action_replay_player_t_func_t const start, action_replay_player_t_func_t const stop, action_replay_player_t_func_t const join )
 {
     if( NULL == args.state )
     {
@@ -158,13 +156,13 @@ static action_replay_return_t action_replay_player_t_internal( action_replay_obj
     return ( action_replay_return_t const ) { result.status };
 }
 
-static action_replay_return_t action_replay_player_t_start_func_t_start( action_replay_player_t * const restrict self, action_replay_time_t const * const restrict zero_time );
-static action_replay_return_t action_replay_player_t_stop_func_t_stop( action_replay_player_t * const self );
-static action_replay_return_t action_replay_player_t_stop_func_t_join( action_replay_player_t * const self );
+static action_replay_return_t action_replay_player_t_func_t_start( action_replay_player_t * const self );
+static action_replay_return_t action_replay_player_t_func_t_stop( action_replay_player_t * const self );
+static action_replay_return_t action_replay_player_t_func_t_join( action_replay_player_t * const self );
 
 static inline action_replay_return_t action_replay_player_t_constructor( void * const object, action_replay_args_t const args )
 {
-    return action_replay_player_t_internal( CONSTRUCT, object, NULL, args, action_replay_player_t_start_func_t_start, action_replay_player_t_stop_func_t_stop, action_replay_player_t_stop_func_t_join );
+    return action_replay_player_t_internal( CONSTRUCT, object, NULL, args, action_replay_player_t_func_t_start, action_replay_player_t_func_t_stop, action_replay_player_t_func_t_join );
 }
 
 static action_replay_return_t action_replay_player_t_destructor( void * const object )
@@ -216,14 +214,12 @@ static action_replay_return_t action_replay_player_t_copier( void * const restri
 
 static FILE * action_replay_player_t_open_output_from_header( FILE * const input );
 
-static action_replay_return_t action_replay_player_t_start_func_t_start( action_replay_player_t * const restrict self, action_replay_time_t const * const restrict zero_time )
+static action_replay_return_t action_replay_player_t_func_t_start( action_replay_player_t * const self )
 {
     if
     (
         ( NULL == self )
-        || ( NULL == zero_time )
         || ( ! action_replay_is_type( ( void * ) self, action_replay_player_t_class() ))
-        || ( ! action_replay_is_type( ( void * ) zero_time, action_replay_time_t_class() ))
     )
     {
         return ( action_replay_return_t const ) { EINVAL };
@@ -252,25 +248,15 @@ static action_replay_return_t action_replay_player_t_start_func_t_start( action_
         goto handle_open_output_error;
     }
 
-    if( NULL == ( self->player_state->zero_time = action_replay_copy( ( void * ) zero_time )))
-    {
-        action_replay_log( "%s: failure allocating zero_time object\n", __func__ );
-        result.status = errno;
-        goto handle_zero_time_copy_error;
-    }
-
     OPA_store_ptr( &( self->player_state->run_flag ), &worker_continue );
 
     action_replay_log( "%s: starting parsing worker %p\n", __func__, self->player_state->worker );
     if( 0 != ( result = self->player_state->worker->start( self->player_state->worker, self->player_state )).status )
     {
         action_replay_log( "%s: failure starting parsing worker %p thread\n", __func__, self->player_state->worker );
-        action_replay_delete( ( void * ) ( self->player_state->zero_time ));
-        self->player_state->zero_time = NULL;
         OPA_store_ptr( &( self->player_state->run_flag ), &worker_stop );
     }
 
-handle_zero_time_copy_error:
     if( 0 != result.status )
     {
         fclose( self->player_state->output );
@@ -282,9 +268,9 @@ handle_open_output_error:
     return result;
 }
 
-typedef void ( * action_replay_player_t_stop_func_t_finish_worker_operation_t )( action_replay_player_t * const self );
+typedef void ( * action_replay_player_t_func_t_finish_worker_operation_t )( action_replay_player_t * const self );
 
-static action_replay_return_t action_replay_player_t_stop_func_t_finish_worker( action_replay_player_t * const self, action_replay_player_t_stop_func_t_finish_worker_operation_t const operation )
+static action_replay_return_t action_replay_player_t_func_t_finish_worker( action_replay_player_t * const self, action_replay_player_t_func_t_finish_worker_operation_t const operation )
 {
     action_replay_return_t result;
 
@@ -316,12 +302,12 @@ static action_replay_return_t action_replay_player_t_stop_func_t_finish_worker( 
     return result;
 }
 
-static inline void action_replay_player_t_stop_func_t_finish_worker_operation_t_stop( action_replay_player_t * const self )
+static inline void action_replay_player_t_func_t_finish_worker_operation_t_stop( action_replay_player_t * const self )
 {
     OPA_store_ptr( &( self->player_state->run_flag ), &worker_stop );
 }
 
-static action_replay_return_t action_replay_player_t_stop_func_t_stop( action_replay_player_t * const self )
+static action_replay_return_t action_replay_player_t_func_t_stop( action_replay_player_t * const self )
 {
     if
     (
@@ -334,7 +320,7 @@ static action_replay_return_t action_replay_player_t_stop_func_t_stop( action_re
 
     action_replay_return_t result;
 
-    if( 0 != ( result = action_replay_player_t_stop_func_t_finish_worker( self, action_replay_player_t_stop_func_t_finish_worker_operation_t_stop )).status )
+    if( 0 != ( result = action_replay_player_t_func_t_finish_worker( self, action_replay_player_t_func_t_finish_worker_operation_t_stop )).status )
     {
         if( EALREADY == result.status )
         {
@@ -354,18 +340,16 @@ static action_replay_return_t action_replay_player_t_stop_func_t_stop( action_re
     }
     action_replay_log( "%s: workqueue %p stopped\n", __func__, self->player_state->queue );
 
-    action_replay_delete( ( void * ) ( self->player_state->zero_time ));
-    self->player_state->zero_time = NULL;
     fclose( self->player_state->output );
     return result;
 }
 
-static inline void action_replay_player_t_stop_func_t_finish_worker_operation_t_join( action_replay_player_t * const self )
+static inline void action_replay_player_t_func_t_finish_worker_operation_t_join( action_replay_player_t * const self )
 {
     ( void ) self;
 }
 
-static action_replay_return_t action_replay_player_t_stop_func_t_join( action_replay_player_t * const self )
+static action_replay_return_t action_replay_player_t_func_t_join( action_replay_player_t * const self )
 {
     if
     (
@@ -378,7 +362,7 @@ static action_replay_return_t action_replay_player_t_stop_func_t_join( action_re
 
     action_replay_return_t result;
 
-    if( 0 != ( result = action_replay_player_t_stop_func_t_finish_worker( self, action_replay_player_t_stop_func_t_finish_worker_operation_t_join )).status )
+    if( 0 != ( result = action_replay_player_t_func_t_finish_worker( self, action_replay_player_t_func_t_finish_worker_operation_t_join )).status )
     {
         if( EALREADY == result.status )
         {
@@ -398,15 +382,12 @@ static action_replay_return_t action_replay_player_t_stop_func_t_join( action_re
     }
     action_replay_log( "%s: workqueue %p finished\n", __func__, self->player_state->queue );
 
-    action_replay_delete( ( void * ) ( self->player_state->zero_time ));
-    self->player_state->zero_time = NULL;
     fclose( self->player_state->output );
     return result;
 }
 
 typedef struct
 {
-    action_replay_time_t * zero_time;
     FILE * output;
     uint64_t nanoseconds;
     uint16_t type;
@@ -415,7 +396,7 @@ typedef struct
 }
 action_replay_player_t_worker_parse_state_t;
 
-static action_replay_player_t_worker_parse_state_t * action_replay_player_t_parse_line( char * const restrict buffer, size_t const size, action_replay_time_t * const restrict zero_time, FILE * const restrict output, jsmntok_t * const restrict tokens );
+static action_replay_player_t_worker_parse_state_t * action_replay_player_t_parse_line( char * const restrict buffer, size_t const size, FILE * const restrict output, jsmntok_t * const restrict tokens );
 static void action_replay_player_t_process_item( void * const state );
 
 static void * action_replay_player_t_worker( void * thread_state )
@@ -448,7 +429,7 @@ static void * action_replay_player_t_worker( void * thread_state )
             continue;
         }
 
-        action_replay_player_t_worker_parse_state_t * parse_state = action_replay_player_t_parse_line( buffer, size, player_state->zero_time, player_state->output, tokens );
+        action_replay_player_t_worker_parse_state_t * parse_state = action_replay_player_t_parse_line( buffer, size, player_state->output, tokens );
 
         if( NULL == parse_state )
         {
@@ -470,7 +451,7 @@ static void * action_replay_player_t_worker( void * thread_state )
     return NULL;
 }
 
-static action_replay_player_t_worker_parse_state_t * action_replay_player_t_parse_line( char * const restrict buffer, size_t const size, action_replay_time_t * const restrict zero_time, FILE * const restrict output, jsmntok_t * const restrict tokens )
+static action_replay_player_t_worker_parse_state_t * action_replay_player_t_parse_line( char * const restrict buffer, size_t const size, FILE * const restrict output, jsmntok_t * const restrict tokens )
 {
     jsmn_parser parser;
 
@@ -496,7 +477,6 @@ static action_replay_player_t_worker_parse_state_t * action_replay_player_t_pars
         return NULL;
     }
 
-    parse_state->zero_time = zero_time;
     parse_state->output = output;
     parse_state->nanoseconds = strtoull( buffer + tokens[ INPUT_JSON_TIME_TOKEN ].start, NULL, 10 );
     parse_state->type = ( uint16_t ) strtoul( buffer + tokens[ INPUT_JSON_TYPE_TOKEN ].start, NULL, 10 );
@@ -516,20 +496,15 @@ static void action_replay_player_t_process_item( void * const state )
         .value = parse_state->value
     };
 
-    action_replay_log( "%s: event requires sleeping for %" PRIu64 " nanoseconds\n", __func__, parse_state->nanoseconds );
     if( 0 < parse_state->nanoseconds )
     {
-        parse_state->zero_time->add( parse_state->zero_time, action_replay_time_t_from_nanoseconds( parse_state->nanoseconds ));
-        struct timespec const now = action_replay_time_t_now();
-        parse_state->zero_time->sub( parse_state->zero_time, now );
-        struct timespec const sleep_time = action_replay_time_t_from_time_t( parse_state->zero_time );
-        parse_state->zero_time->add( parse_state->zero_time, now );
-
-        nanosleep( &sleep_time, NULL );
+        nanosleep( ( struct timespec const [] ) { action_replay_time_t_from_nanoseconds( parse_state->nanoseconds ) }, NULL );
     }
 
-    ssize_t const result = write( fileno( parse_state->output ), &event, sizeof( struct input_event ));
-    action_replay_log( "%s: written %d bytes to output device %p\n", __func__, result, parse_state->output );
+    if( ( ssize_t ) sizeof( struct input_event ) > write( fileno( parse_state->output ), &event, sizeof( struct input_event )))
+    {
+        action_replay_log( "%s: failure writing to output device %p\n", __func__, parse_state->output );
+    }
     free( state );
 }
 
