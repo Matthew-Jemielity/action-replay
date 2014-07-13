@@ -18,6 +18,7 @@
 #include <inttypes.h>
 #include <jsmn.h>
 #include <linux/input.h>
+#include <opa_primitives.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -49,7 +50,18 @@ struct action_replay_player_t_state_t
     action_replay_workqueue_t * queue;
     FILE * input;
     FILE * output;
+    OPA_ptr_t run_flag;
 };
+
+typedef enum
+{
+    WORKER_CONTINUE,
+    WORKER_STOP
+}
+action_replay_player_t_run_flag_t;
+
+static action_replay_player_t_run_flag_t worker_continue = WORKER_CONTINUE;
+static action_replay_player_t_run_flag_t worker_stop = WORKER_STOP;
 
 static void * action_replay_player_t_worker( void * thread_state );
 
@@ -83,6 +95,7 @@ static action_replay_stateful_return_t action_replay_player_t_state_t_new( actio
     {
         action_replay_log( "%s: %s opened as %p\n", __func__, player_args->path_to_input, player_state->input );
         player_state->zero_time = NULL;
+        OPA_store_ptr( &( player_state->run_flag ), &worker_stop );
         return result;
     }
 
@@ -120,7 +133,7 @@ static action_replay_return_t action_replay_player_t_state_t_delete( action_repl
 
 action_replay_class_t const * action_replay_player_t_class( void );
 
-static action_replay_return_t action_replay_player_t_internal( action_replay_object_oriented_programming_super_operation_t const operation, action_replay_player_t * const restrict player, action_replay_player_t const * const restrict original_player, action_replay_args_t const args, action_replay_player_t_start_func_t const start, action_replay_player_t_stop_func_t const stop )
+static action_replay_return_t action_replay_player_t_internal( action_replay_object_oriented_programming_super_operation_t const operation, action_replay_player_t * const restrict player, action_replay_player_t const * const restrict original_player, action_replay_args_t const args, action_replay_player_t_start_func_t const start, action_replay_player_t_stop_func_t const stop, action_replay_player_t_stop_func_t const join )
 {
     if( NULL == args.state )
     {
@@ -140,16 +153,18 @@ static action_replay_return_t action_replay_player_t_internal( action_replay_obj
     player->player_state = result.state;
     player->start = start;
     player->stop = stop;
+    player->join = join;
 
     return ( action_replay_return_t const ) { result.status };
 }
 
 static action_replay_return_t action_replay_player_t_start_func_t_start( action_replay_player_t * const restrict self, action_replay_time_t const * const restrict zero_time );
 static action_replay_return_t action_replay_player_t_stop_func_t_stop( action_replay_player_t * const self );
+static action_replay_return_t action_replay_player_t_stop_func_t_join( action_replay_player_t * const self );
 
 static inline action_replay_return_t action_replay_player_t_constructor( void * const object, action_replay_args_t const args )
 {
-    return action_replay_player_t_internal( CONSTRUCT, object, NULL, args, action_replay_player_t_start_func_t_start, action_replay_player_t_stop_func_t_stop );
+    return action_replay_player_t_internal( CONSTRUCT, object, NULL, args, action_replay_player_t_start_func_t_start, action_replay_player_t_stop_func_t_stop, action_replay_player_t_stop_func_t_join );
 }
 
 static action_replay_return_t action_replay_player_t_destructor( void * const object )
@@ -187,7 +202,7 @@ static action_replay_return_t action_replay_player_t_copier( void * const restri
         return ( action_replay_return_t const ) { args.status };
     }
 
-    action_replay_return_t const result = action_replay_player_t_internal( COPY, copy, original, args.args, original_player->start, original_player->stop );
+    action_replay_return_t const result = action_replay_player_t_internal( COPY, copy, original, args.args, original_player->start, original_player->stop, original_player->join );
 
     /* 
      * error here will result in unhandled memory leak
@@ -216,23 +231,23 @@ static action_replay_return_t action_replay_player_t_start_func_t_start( action_
 
     action_replay_return_t result;
 
-    action_replay_log( "%s: locking parsing worker before start\n", __func__ );
+    action_replay_log( "%s: locking parsing worker %p before start\n", __func__, self->player_state->worker );
     switch(( result = self->player_state->worker->start_lock( self->player_state->worker )).status )
     {
         case 0:
             break;
         case EALREADY:
-            action_replay_log( "%s: parsing worker already running\n", __func__ );
+            action_replay_log( "%s: parsing worker %p already running\n", __func__, self->player_state->worker );
             return ( action_replay_return_t const ) { 0 };
         default:
-            action_replay_log( "%s: cannot lock parsing worker, errno = %d\n", __func__, result.status );
+            action_replay_log( "%s: cannot lock parsing worker %p, errno = %d\n", __func__, self->player_state->worker, result.status );
             return result;
     }
-    action_replay_log( "%s: parsing worker locked\n", __func__ );
+    action_replay_log( "%s: parsing worker %p locked\n", __func__, self->player_state->worker );
 
     if( NULL == ( self->player_state->output = action_replay_player_t_open_output_from_header( self->player_state->input )))
     {
-        action_replay_log( "%s: cannot open output file from header information\n", __func__ );
+        action_replay_log( "%s: parsing worker %p cannot open output file from header information\n", __func__, self->player_state->worker );
         result.status = EIO;
         goto handle_open_output_error;
     }
@@ -244,12 +259,15 @@ static action_replay_return_t action_replay_player_t_start_func_t_start( action_
         goto handle_zero_time_copy_error;
     }
 
-    action_replay_log( "%s: starting parsing worker\n", __func__ );
+    OPA_store_ptr( &( self->player_state->run_flag ), &worker_continue );
+
+    action_replay_log( "%s: starting parsing worker %p\n", __func__, self->player_state->worker );
     if( 0 != ( result = self->player_state->worker->start( self->player_state->worker, self->player_state )).status )
     {
-        action_replay_log( "%s: failure starting parsing worker thread\n", __func__ );
+        action_replay_log( "%s: failure starting parsing worker %p thread\n", __func__, self->player_state->worker );
         action_replay_delete( ( void * ) ( self->player_state->zero_time ));
         self->player_state->zero_time = NULL;
+        OPA_store_ptr( &( self->player_state->run_flag ), &worker_stop );
     }
 
 handle_zero_time_copy_error:
@@ -258,10 +276,49 @@ handle_zero_time_copy_error:
         fclose( self->player_state->output );
     }
 handle_open_output_error:
-    action_replay_log( "%s: unlocking worker\n", __func__ );
+    action_replay_log( "%s: unlocking worker %p\n", __func__, self->player_state->worker );
     self->player_state->worker->start_unlock( self->player_state->worker, ( 0 == result.status ));
-    action_replay_log( "%s: worker unlocked\n", __func__ );
+    action_replay_log( "%s: worker unlocked %p\n", __func__, self->player_state->worker );
     return result;
+}
+
+typedef void ( * action_replay_player_t_stop_func_t_finish_worker_operation_t )( action_replay_player_t * const self );
+
+static action_replay_return_t action_replay_player_t_stop_func_t_finish_worker( action_replay_player_t * const self, action_replay_player_t_stop_func_t_finish_worker_operation_t const operation )
+{
+    action_replay_return_t result;
+
+    action_replay_log( "%s: locking parsing worker %p before stopping\n", __func__, self->player_state->worker );
+    switch(( result = self->player_state->worker->stop_lock( self->player_state->worker )).status )
+    {
+        case 0:
+            break;
+        case EALREADY:
+            action_replay_log( "%s: parsing worker %p already stopped\n", __func__, self->player_state->worker );
+            return result;
+        default:
+            action_replay_log( "%s: failure locking parsing worker %p, errno = %d\n", __func__, self->player_state->worker, result.status );
+            return result;
+    }
+    action_replay_log( "%s: parsing worker %p locked\n", __func__, self->player_state->worker );
+
+    operation( self );
+
+    action_replay_log( "%s: waiting for parsing worker %p to quit\n", __func__, self->player_state->worker );
+    if( 0 != ( result = self->player_state->worker->stop( self->player_state->worker )).status )
+    {
+        action_replay_log( "%s: failure stopping parsing worker %p\n", __func__, self->player_state->worker );
+    }
+
+    action_replay_log( "%s: unlocking parsing worker %p\n", __func__, self->player_state->worker );
+    self->player_state->worker->stop_unlock( self->player_state->worker, ( 0 == result.status ));
+    action_replay_log( "%s: parsing worker %p unlocked\n", __func__, self->player_state->worker );
+    return result;
+}
+
+static inline void action_replay_player_t_stop_func_t_finish_worker_operation_t_stop( action_replay_player_t * const self )
+{
+    OPA_store_ptr( &( self->player_state->run_flag ), &worker_stop );
 }
 
 static action_replay_return_t action_replay_player_t_stop_func_t_stop( action_replay_player_t * const self )
@@ -275,42 +332,75 @@ static action_replay_return_t action_replay_player_t_stop_func_t_stop( action_re
         return ( action_replay_return_t const ) { EINVAL };
     }
 
-    action_replay_log( "%s: stopping workqueue\n", __func__ );
-    action_replay_return_t result = self->player_state->queue->stop( self->player_state->queue );
+    action_replay_return_t result;
+
+    if( 0 != ( result = action_replay_player_t_stop_func_t_finish_worker( self, action_replay_player_t_stop_func_t_finish_worker_operation_t_stop )).status )
+    {
+        if( EALREADY == result.status )
+        {
+            action_replay_log( "%s: player %p already stopped\n", __func__, self );
+            result.status = 0;
+        }
+        return result;
+    }
+
+    action_replay_log( "%s: stopping workqueue %p\n", __func__, self->player_state->queue );
+    result = self->player_state->queue->stop( self->player_state->queue );
 
     if( 0 != result.status )
     {
-        action_replay_log( "%s: failure stopping workqueue\n", __func__ );
+        action_replay_log( "%s: failure stopping workqueue %p\n", __func__, self->player_state->queue );
         return result;
     }
-    action_replay_log( "%s: workqueue stopped\n", __func__ );
+    action_replay_log( "%s: workqueue %p stopped\n", __func__, self->player_state->queue );
 
-    action_replay_log( "%s: locking parsing worker before stopping\n", __func__ );
-    switch(( result = self->player_state->worker->stop_lock( self->player_state->worker )).status )
+    action_replay_delete( ( void * ) ( self->player_state->zero_time ));
+    self->player_state->zero_time = NULL;
+    fclose( self->player_state->output );
+    return result;
+}
+
+static inline void action_replay_player_t_stop_func_t_finish_worker_operation_t_join( action_replay_player_t * const self )
+{
+    ( void ) self;
+}
+
+static action_replay_return_t action_replay_player_t_stop_func_t_join( action_replay_player_t * const self )
+{
+    if
+    (
+        ( NULL == self )
+        || ( ! action_replay_is_type( ( void * ) self, action_replay_player_t_class() ))
+    )
     {
-        case 0:
-            break;
-        case EALREADY:
-            action_replay_log( "%s: parsing worker already stopped\n", __func__ );
-            return ( action_replay_return_t const ) { 0 };
-        default:
-            action_replay_log( "%s: failure locking parsing worker, errno = %d\n", __func__, result.status );
-            return result;
+        return ( action_replay_return_t const ) { EINVAL };
     }
-    action_replay_log( "%s: parsing worker locked\n", __func__ );
 
-    action_replay_log( "%s: waitng for parsing worker to quit\n", __func__ );
-    if( 0 == ( result = self->player_state->worker->stop( self->player_state->worker )).status )
+    action_replay_return_t result;
+
+    if( 0 != ( result = action_replay_player_t_stop_func_t_finish_worker( self, action_replay_player_t_stop_func_t_finish_worker_operation_t_join )).status )
     {
-        action_replay_log( "%s: success stopping parsing worker\n", __func__ );
-        action_replay_delete( ( void * ) ( self->player_state->zero_time ));
-        self->player_state->zero_time = NULL;
-        fclose( self->player_state->output );
+        if( EALREADY == result.status )
+        {
+            action_replay_log( "%s: player %p already stopped\n", __func__, self );
+            result.status = 0;
+        }
+        return result;
     }
 
-    action_replay_log( "%s: unlocking parsing worker\n", __func__ );
-    self->player_state->worker->stop_unlock( self->player_state->worker, ( 0 == result.status ));
-    action_replay_log( "%s: parsing worker unlocked\n", __func__ );
+    action_replay_log( "%s: waiting for workqueue %p to finish processing items\n", __func__, self->player_state->queue );
+    result = self->player_state->queue->join( self->player_state->queue );
+
+    if( 0 != result.status )
+    {
+        action_replay_log( "%s: failure joining workqueue %p\n", __func__, self->player_state->queue );
+        return result;
+    }
+    action_replay_log( "%s: workqueue %p finished\n", __func__, self->player_state->queue );
+
+    action_replay_delete( ( void * ) ( self->player_state->zero_time ));
+    self->player_state->zero_time = NULL;
+    fclose( self->player_state->output );
     return result;
 }
 
@@ -325,35 +415,44 @@ typedef struct
 }
 action_replay_player_t_worker_parse_state_t;
 
-static action_replay_player_t_worker_parse_state_t * action_replay_player_t_parse_line( char * const restrict buffer, size_t const size, action_replay_time_t * const restrict zero_time, FILE * const restrict output );
+static action_replay_player_t_worker_parse_state_t * action_replay_player_t_parse_line( char * const restrict buffer, size_t const size, action_replay_time_t * const restrict zero_time, FILE * const restrict output, jsmntok_t * const restrict tokens );
 static void action_replay_player_t_process_item( void * const state );
 
 static void * action_replay_player_t_worker( void * thread_state )
 {
     action_replay_player_t_state_t * const player_state = thread_state;
+    jsmntok_t tokens[ INPUT_JSON_TOKENS_COUNT ];
 
-    action_replay_log( "%s: starting workqueue\n", __func__ );
+    action_replay_log( "%s: starting workqueue %p\n", __func__, player_state->queue );
     if( 0 != player_state->queue->start( player_state->queue ).status )
     {
-        action_replay_log( "%s: failure starting workqueue\n", __func__ );
+        action_replay_log( "%s: failure starting workqueue %p\n", __func__, player_state->queue );
         return NULL;
     }
-    action_replay_log( "%s: workqueue started\n", __func__ );
+    action_replay_log( "%s: workqueue %p started\n", __func__, player_state->queue );
 
     char * buffer = NULL;
     size_t size = 0;
 
     while( 0 < getline( &buffer, &size, player_state->input ))
     {
+        action_replay_player_t_run_flag_t * run_flag;
+        if( WORKER_STOP == * ( run_flag = OPA_load_ptr( &( player_state->run_flag ))))
+        {
+            action_replay_log( "%s: worker %p ordered to stop\n", __func__, player_state->worker );
+            break;
+        }
+
         if( COMMENT_SYMBOL == buffer[ 0 ] )
         {
             continue;
         }
 
-        action_replay_player_t_worker_parse_state_t * parse_state = action_replay_player_t_parse_line( buffer, size, player_state->zero_time, player_state->output );
+        action_replay_player_t_worker_parse_state_t * parse_state = action_replay_player_t_parse_line( buffer, size, player_state->zero_time, player_state->output, tokens );
 
         if( NULL == parse_state )
         {
+            action_replay_log( "%s: failure to allocate memory for parse_state in worker %p\n", __func__, player_state->worker );
             player_state->queue->stop( player_state->queue );
             break;
         }
@@ -365,16 +464,15 @@ static void * action_replay_player_t_worker( void * thread_state )
             break;
         }
     }
-    action_replay_log( "%s: getline() finished reading input from %p\n", __func__, player_state->input );
+    action_replay_log( "%s: stopped reading input from %p\n", __func__, player_state->input );
 
     free( buffer );
     return NULL;
 }
 
-static action_replay_player_t_worker_parse_state_t * action_replay_player_t_parse_line( char * const restrict buffer, size_t const size, action_replay_time_t * const restrict zero_time, FILE * const restrict output )
+static action_replay_player_t_worker_parse_state_t * action_replay_player_t_parse_line( char * const restrict buffer, size_t const size, action_replay_time_t * const restrict zero_time, FILE * const restrict output, jsmntok_t * const restrict tokens )
 {
     jsmn_parser parser;
-    jsmntok_t tokens[ INPUT_JSON_TOKENS_COUNT ];
 
     jsmn_init( &parser );
     if( INPUT_JSON_TOKENS_COUNT != jsmn_parse( &parser, buffer, size, tokens, INPUT_JSON_TOKENS_COUNT ))
@@ -422,18 +520,17 @@ static void action_replay_player_t_process_item( void * const state )
     if( 0 < parse_state->nanoseconds )
     {
         parse_state->zero_time->add( parse_state->zero_time, action_replay_time_t_from_nanoseconds( parse_state->nanoseconds ));
-        action_replay_time_t * const time = action_replay_new( action_replay_time_t_class(), action_replay_time_t_args( action_replay_time_t_from_time_t( parse_state->zero_time )));
-        if( NULL != time )
-        {
-            time->sub( time, action_replay_time_t_now() );
-        }
-        struct timespec const sleep_time = action_replay_time_t_from_time_t( time );
+        struct timespec const now = action_replay_time_t_now();
+        parse_state->zero_time->sub( parse_state->zero_time, now );
+        struct timespec const sleep_time = action_replay_time_t_from_time_t( parse_state->zero_time );
+        parse_state->zero_time->add( parse_state->zero_time, now );
 
         nanosleep( &sleep_time, NULL );
     }
 
     ssize_t const result = write( fileno( parse_state->output ), &event, sizeof( struct input_event ));
     action_replay_log( "%s: written %d bytes to output device %p\n", __func__, result, parse_state->output );
+    free( state );
 }
 
 static FILE * action_replay_player_t_open_output_from_header( FILE * const input )

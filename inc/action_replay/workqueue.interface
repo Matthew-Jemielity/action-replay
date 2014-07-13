@@ -6,4 +6,5 @@ action_replay_workqueue_t_state_t * workqueue_state;
 action_replay_workqueue_t_put_func_t put;
 action_replay_workqueue_t_func_t start;
 action_replay_workqueue_t_func_t stop;
+action_replay_workqueue_t_func_t join;
 

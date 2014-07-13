@@ -17,11 +17,13 @@
 typedef enum
 {
     WORKQUEUE_CONTINUE,
+    WORKQUEUE_JOIN,
     WORKQUEUE_STOP
 }
 action_replay_workqueue_t_run_flag_t;
 
 static action_replay_workqueue_t_run_flag_t workqueue_continue = WORKQUEUE_CONTINUE;
+static action_replay_workqueue_t_run_flag_t workqueue_join = WORKQUEUE_JOIN;
 static action_replay_workqueue_t_run_flag_t workqueue_stop = WORKQUEUE_STOP;
 
 typedef struct
@@ -112,7 +114,7 @@ static action_replay_return_t action_replay_workqueue_t_state_t_delete( action_r
 
 action_replay_class_t const * action_replay_workqueue_t_class( void );
 
-static action_replay_return_t action_replay_workqueue_t_internal( action_replay_object_oriented_programming_super_operation_t const operation, action_replay_workqueue_t * const restrict workqueue, action_replay_workqueue_t const * const restrict original_workqueue, action_replay_args_t const args, action_replay_workqueue_t_put_func_t const put, action_replay_workqueue_t_func_t const start, action_replay_workqueue_t_func_t const stop )
+static action_replay_return_t action_replay_workqueue_t_internal( action_replay_object_oriented_programming_super_operation_t const operation, action_replay_workqueue_t * const restrict workqueue, action_replay_workqueue_t const * const restrict original_workqueue, action_replay_args_t const args, action_replay_workqueue_t_put_func_t const put, action_replay_workqueue_t_func_t const start, action_replay_workqueue_t_func_t const stop, action_replay_workqueue_t_func_t const join )
 {
     SUPER( operation, action_replay_workqueue_t_class, workqueue, original_workqueue, args );
 
@@ -128,17 +130,19 @@ static action_replay_return_t action_replay_workqueue_t_internal( action_replay_
     workqueue->put = put;
     workqueue->start = start;
     workqueue->stop = stop;
+    workqueue->join = join;
 
     return ( action_replay_return_t const ) { result.status };
 }
 
 static action_replay_return_t action_replay_workqueue_t_put_func_t_put( action_replay_workqueue_t * const self, action_replay_workqueue_t_work_func_t const payload, void * const state );
 static action_replay_return_t action_replay_workqueue_t_func_t_start( action_replay_workqueue_t * const self );
-static action_replay_return_t action_replay_workqueue_t_func_t_stop( action_replay_workqueue_t * const workqueue );
+static action_replay_return_t action_replay_workqueue_t_func_t_stop( action_replay_workqueue_t * const self );
+static action_replay_return_t action_replay_workqueue_t_func_t_join( action_replay_workqueue_t * const self );
 
 static inline action_replay_return_t action_replay_workqueue_t_constructor( void * const object, action_replay_args_t const args )
 {
-    return action_replay_workqueue_t_internal( CONSTRUCT, object, NULL, args, action_replay_workqueue_t_put_func_t_put, action_replay_workqueue_t_func_t_start, action_replay_workqueue_t_func_t_stop );
+    return action_replay_workqueue_t_internal( CONSTRUCT, object, NULL, args, action_replay_workqueue_t_put_func_t_put, action_replay_workqueue_t_func_t_start, action_replay_workqueue_t_func_t_stop, action_replay_workqueue_t_func_t_join );
 }
 
 static action_replay_return_t action_replay_workqueue_t_destructor( void * const object )
@@ -195,11 +199,21 @@ static action_replay_return_t action_replay_workqueue_t_put_func_t_put( action_r
     pthread_mutex_lock( &( self->workqueue_state->mutex ));
 
     action_replay_workqueue_t_run_flag_t const * run_flag;
-    /* if after queue flush, this will always be true */
-    if( WORKQUEUE_STOP == * ( run_flag = OPA_load_ptr( &( self->workqueue_state->run_flag ))))
+    switch( * ( run_flag = OPA_load_ptr( &( self->workqueue_state->run_flag ))))
     {
-        action_replay_log( "%s: workqueue %p cannot handle payload, it was ordered to stop\n", __func__, self );
-        goto handle_stop_queue;
+        case WORKQUEUE_STOP:
+            /* if after queue flush, this will always be true */
+            action_replay_log( "%s: workqueue %p cannot handle payload, it was ordered to stop\n", __func__, self );
+            free( state );
+            result.status = ESHUTDOWN;
+            goto handle_stop_queue;
+        case WORKQUEUE_JOIN:
+            action_replay_log( "%s: constraint violation - new payload after workqueue %p ordered to join\n", __func__, self );
+            free( state );
+            result.status = EINVAL;
+            break;
+        default:
+            break;
     }
 
     action_replay_workqueue_t_item_t * item = calloc( 1, sizeof( action_replay_workqueue_t_item_t ));
@@ -250,7 +264,7 @@ static action_replay_return_t action_replay_workqueue_t_func_t_start( action_rep
     return result;
 }
 
-static action_replay_return_t action_replay_workqueue_t_func_t_stop( action_replay_workqueue_t * const self )
+static action_replay_return_t action_replay_workqueue_t_func_t_finish( action_replay_workqueue_t * const self, action_replay_workqueue_t_run_flag_t * const run_flag )
 {
     if
     (
@@ -272,7 +286,7 @@ static action_replay_return_t action_replay_workqueue_t_func_t_stop( action_repl
         default:
             return result;
     }
-    OPA_store_ptr( &( self->workqueue_state->run_flag ), &workqueue_stop );
+    OPA_store_ptr( &( self->workqueue_state->run_flag ), run_flag );
     /* in case thread is waiting on empty queue */
     result = ( action_replay_return_t const ) { pthread_cond_signal( &( self->workqueue_state->condition )) };
     if( 0 == result.status )
@@ -283,22 +297,37 @@ static action_replay_return_t action_replay_workqueue_t_func_t_stop( action_repl
     return result;
 }
 
+static inline action_replay_return_t action_replay_workqueue_t_func_t_stop( action_replay_workqueue_t * const self )
+{
+    return action_replay_workqueue_t_func_t_finish( self, &workqueue_stop );
+}
+
+static inline action_replay_return_t action_replay_workqueue_t_func_t_join( action_replay_workqueue_t * const self )
+{
+    return action_replay_workqueue_t_func_t_finish( self, &workqueue_join );
+}
+
 static void * action_replay_workqueue_t_process_queue( void * state )
 {
     action_replay_workqueue_t_state_t * const workqueue_state = state;
     action_replay_workqueue_t_run_flag_t const * run_flag;
 
     action_replay_log( "%s: workqueue processing thread %p started\n", __func__, state );
-    while( WORKQUEUE_CONTINUE == * ( run_flag = OPA_load_ptr( &( workqueue_state->run_flag ))))
+    while( WORKQUEUE_STOP != * ( run_flag = OPA_load_ptr( &( workqueue_state->run_flag ))))
     {
         pthread_mutex_lock( &( workqueue_state->mutex ));
         while( 1 == OPA_Queue_is_empty( &( workqueue_state->queue )))
         {
+
+            if( WORKQUEUE_JOIN == * ( run_flag = OPA_load_ptr( &( workqueue_state->run_flag ))))
+            {
+                action_replay_log( "%s: no more work coming, queue empty - quitting thread %p\n", __func__, state );
+                goto handle_join_queue;
+            }
             pthread_cond_wait( &( workqueue_state->condition ), &( workqueue_state->mutex ));
             if( WORKQUEUE_STOP == * ( run_flag = OPA_load_ptr( &( workqueue_state->run_flag ))))
             {
                 action_replay_log( "%s: workqueue processing thread %p ordered to stop\n", __func__, state );
-                pthread_mutex_unlock( &( workqueue_state->mutex ));
                 goto handle_stop_queue;
             }
         }
@@ -308,12 +337,12 @@ static void * action_replay_workqueue_t_process_queue( void * state )
 
         OPA_Queue_dequeue( &( workqueue_state->queue ), item, action_replay_workqueue_t_item_t, header );
         item->payload( item->state );
-        free( item->state );
         free( item );
     }
-    action_replay_log( "%s: workqueue processing thread %p main loop finished\n", __func__, state );
 
+handle_join_queue:
 handle_stop_queue:
+    pthread_mutex_unlock( &( workqueue_state->mutex ));
     pthread_mutex_lock( &( workqueue_state->mutex ));
     /* flush queue */
     while( 0 == OPA_Queue_is_empty( &( workqueue_state->queue )))
@@ -321,7 +350,6 @@ handle_stop_queue:
         action_replay_workqueue_t_item_t * item;
 
         OPA_Queue_dequeue( &( workqueue_state->queue ), item, action_replay_workqueue_t_item_t, header );
-        free( item->state );
         free( item );
     }
     pthread_mutex_unlock( &( workqueue_state->mutex ));

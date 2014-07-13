@@ -5,4 +5,5 @@
 action_replay_player_t_state_t * player_state;
 action_replay_player_t_start_func_t start;
 action_replay_player_t_stop_func_t stop;
+action_replay_player_t_stop_func_t join;
 

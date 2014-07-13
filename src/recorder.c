@@ -240,19 +240,19 @@ static action_replay_return_t action_replay_recorder_t_start_func_t_start( actio
 
     action_replay_return_t result;
 
-    action_replay_log( "%s: locking worker before start\n", __func__ );
+    action_replay_log( "%s: locking worker %p before start\n", __func__, self->recorder_state->worker );
     switch(( result = self->recorder_state->worker->start_lock( self->recorder_state->worker )).status )
     {
         case 0:
             break;
         case EALREADY:
-            action_replay_log( "%s: worker already started\n", __func__ );
+            action_replay_log( "%s: worker %p already started\n", __func__, self->recorder_state->worker );
             return ( action_replay_return_t const ) { 0 };
         default:
-            action_replay_log( "%s: failure locking worker, errno = %d\n", __func__, result.status );
+            action_replay_log( "%s: failure locking worker %p, errno = %d\n", __func__, self->recorder_state->worker, result.status );
             return result;
     }
-    action_replay_log( "%s: worker locked\n", __func__ );
+    action_replay_log( "%s: worker %p locked\n", __func__, self->recorder_state->worker );
 
     if( NULL == ( self->recorder_state->zero_time = action_replay_copy( ( void * ) zero_time )))
     {
@@ -261,18 +261,18 @@ static action_replay_return_t action_replay_recorder_t_start_func_t_start( actio
         goto handle_zero_time_copy_error;
     }
 
-    action_replay_log( "%s: starting worker\n", __func__ );
+    action_replay_log( "%s: starting worker %p\n", __func__, self->recorder_state->worker );
     if( 0 != ( result = self->recorder_state->worker->start( self->recorder_state->worker, self->recorder_state )).status )
     {
-        action_replay_log( "%s: failure starting worker\n", __func__ );
+        action_replay_log( "%s: failure starting worker %p\n", __func__, self->recorder_state->worker );
         action_replay_delete( ( void * ) ( self->recorder_state->zero_time ));
         self->recorder_state->zero_time = NULL;
     }
 
 handle_zero_time_copy_error:
-    action_replay_log( "%s: unlocking worker\n", __func__ );
+    action_replay_log( "%s: unlocking worker %p\n", __func__, self->recorder_state->worker );
     self->recorder_state->worker->start_unlock( self->recorder_state->worker, ( 0 == result.status ));
-    action_replay_log( "%s: worker unlocked\n", __func__ );
+    action_replay_log( "%s: worker %p unlocked\n", __func__, self->recorder_state->worker );
     return result;
 }
 
@@ -289,39 +289,39 @@ static action_replay_return_t action_replay_recorder_t_stop_func_t_stop( action_
 
     action_replay_return_t result;
 
-    action_replay_log( "%s: locking worker before stopping", __func__ );
+    action_replay_log( "%s: locking worker %p before stopping\n", __func__, self->recorder_state->worker );
     switch(( result = self->recorder_state->worker->stop_lock( self->recorder_state->worker )).status )
     {
         case 0:
             break;
         case EALREADY:
-            action_replay_log( "%s: worker already stopped\n", __func__ );
+            action_replay_log( "%s: worker %p already stopped\n", __func__, self->recorder_state->worker );
             return ( action_replay_return_t const ) { 0 };
         default:
-            action_replay_log( "%s: failure locking worker, errno = %d\n", __func__, result.status );
+            action_replay_log( "%s: failure locking worker %p, errno = %d\n", __func__, self->recorder_state->worker, result.status );
             return result;
     }
-    action_replay_log( "%s: worker locked\n", __func__ );
+    action_replay_log( "%s: worker %p locked\n", __func__, self->recorder_state->worker );
 
     if( 1 > write( self->recorder_state->pipe_fd[ PIPE_WRITE ], " ", 1 ) /* force exit from poll */ )
     {
-        action_replay_log( "%s: failure forcing the worker thread to wake up\n", __func__ );
+        action_replay_log( "%s: failure forcing the worker %p thread to wake up\n", __func__, self->recorder_state->worker );
         result.status = errno;
         goto handle_write_error;
     }
     
-    action_replay_log( "%s: waiting for worker to quit\n", __func__ );
+    action_replay_log( "%s: waiting for worker %p to quit\n", __func__, self->recorder_state->worker );
     if( 0 == ( result = self->recorder_state->worker->stop( self->recorder_state->worker )).status )
     {
-        action_replay_log( "%s: success stopping worker\n", __func__ );
+        action_replay_log( "%s: success stopping worker %p\n", __func__, self->recorder_state->worker );
         action_replay_delete( ( void * ) ( self->recorder_state->zero_time ));
         self->recorder_state->zero_time = NULL;
     }
 
 handle_write_error:
-    action_replay_log( "%s: unlocking worker\n", __func__ );
+    action_replay_log( "%s: unlocking worker %p\n", __func__, self->recorder_state->worker );
     self->recorder_state->worker->stop_unlock( self->recorder_state->worker, ( 0 == result.status ));
-    action_replay_log( "%s: worker unlockec\n", __func__ );
+    action_replay_log( "%s: worker %p unlocked\n", __func__, self->recorder_state->worker );
     return result;
 }
 
@@ -350,12 +350,12 @@ static void * action_replay_recorder_t_worker( void * thread_state )
         }
     };
 
-    action_replay_log( "%s: worker set up, waiting for events from %p\n", __func__, recorder_state->input );
+    action_replay_log( "%s: worker %p set up, waiting for events from %p\n", __func__, recorder_state->worker, recorder_state->input );
     while( poll( descriptors, POLL_DESCRIPTORS_COUNT, INFINITE_WAIT ))
     {
         if( POLLIN == ( descriptors[ POLL_RUN_FLAG_DESCRIPTOR ].revents & POLLIN ))
         {
-            action_replay_log( "%s: worker ordered to stop polling for events from %p\n", __func__, recorder_state->input );
+            action_replay_log( "%s: worker %p ordered to stop polling for events from %p\n", __func__, recorder_state->worker, recorder_state->input );
             break;
         }
         if
@@ -364,14 +364,14 @@ static void * action_replay_recorder_t_worker( void * thread_state )
             || ( 0 != ( descriptors[ POLL_INPUT_DESCRIPTOR ].revents & ( POLLERR | POLLHUP | POLLNVAL )))
         )
         {
-            action_replay_log( "%s: failure polling for descriptor\n", __func__ );
+            action_replay_log( "%s: failure polling for descriptor in worker %p\n", __func__, recorder_state->worker );
             break;
         }
         if( POLLIN != ( descriptors[ POLL_INPUT_DESCRIPTOR ].revents & POLLIN ))
         {
             continue;
         }
-        action_replay_log( "%s: worker handles event from %p\n", __func__, recorder_state->input );
+        action_replay_log( "%s: worker %p handles event from %p\n", __func__, recorder_state->worker, recorder_state->input );
 
         struct input_event event;
         if( 0 != action_replay_recorder_t_worker_safe_input_read( descriptors[ POLL_INPUT_DESCRIPTOR ].fd, &event, sizeof( struct input_event )))
@@ -387,7 +387,7 @@ static void * action_replay_recorder_t_worker( void * thread_state )
         }
     }
     action_replay_delete( ( void * ) event_time );
-    action_replay_log( "%s: worker stops polling from %p\n", __func__, recorder_state->input );
+    action_replay_log( "%s: worker %p stops polling from %p\n", __func__, recorder_state->worker, recorder_state->input );
     return NULL;
 }
 
@@ -429,6 +429,7 @@ static action_replay_error_t action_replay_recorder_t_worker_safe_output_write( 
     {
         return result.status;
     }
+    action_replay_log( "%s: event: %" PRIu64 ", %" PRIu64 ", %hu, %hu, %d\n", __func__, event.time.tv_sec, event.time.tv_usec, event.type, event.code, event.value );
     if( 0 != ( result = event_time->sub( event_time, action_replay_time_t_from_time_t( zero_time ))).status )
     {
         return result.status;

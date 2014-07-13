@@ -1,4 +1,5 @@
 #define _POSIX_C_SOURCE 199309L /* clock_gettime */
+#define __STDC_FORMAT_MACROS
 
 #include "action_replay/args.h"
 #include "action_replay/class.h"
@@ -9,6 +10,7 @@
 #include "action_replay/stateful_return.h"
 #include "action_replay/time.h"
 #include <errno.h>
+#include <inttypes.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <sys/time.h>
@@ -189,7 +191,7 @@ static action_replay_return_t action_replay_time_t_func_t_sub( action_replay_tim
 
     if( subbed_value > self->time_state->nanoseconds )
     {
-        action_replay_log( "%s: substracting later time from earlier time is not allowed\n", __func__ );
+        action_replay_log( "%s: substracting later time from earlier time is not allowed: %"PRIu64" - %"PRIu64"\n", __func__, self->time_state->nanoseconds, subbed_value );
         return ( action_replay_return_t const ) { E2BIG };
     }
 
@@ -369,6 +371,6 @@ struct timespec action_replay_time_t_from_nanoseconds( uint64_t const value )
 
 static inline uint64_t action_replay_time_t_timespec_to_nanoseconds( struct timespec const value )
 {
-    return ( uint32_t ) value.tv_sec * NANOSECONDS_IN_MICROSECOND * MICROSECONDS_IN_MILLISECOND * MILLISECONDS_IN_SECOND + ( uint32_t ) value.tv_nsec;
+    return ( ( uint64_t ) value.tv_sec ) * NANOSECONDS_IN_MICROSECOND * MICROSECONDS_IN_MILLISECOND * MILLISECONDS_IN_SECOND + ( ( uint64_t ) value.tv_nsec );
 }
 
