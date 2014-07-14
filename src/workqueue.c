@@ -191,7 +191,6 @@ static action_replay_return_t action_replay_workqueue_t_put_func_t_put( action_r
 
     action_replay_return_t result = { 0 };
 
-    action_replay_log( "%s: workqueue %p entering critical section\n", __func__, self );
     /*
      * put() and queue flushing block must be serialized
      * otherwise we could leak memory
@@ -226,12 +225,10 @@ static action_replay_return_t action_replay_workqueue_t_put_func_t_put( action_r
     item->payload = payload;
     item->state = state;
     OPA_Queue_enqueue( &( self->workqueue_state->queue ), item, action_replay_workqueue_t_item_t, header );
-    action_replay_log( "%s: payload enqueued\n", __func__ );
 
     result = ( action_replay_return_t const ) { pthread_cond_signal( &( self->workqueue_state->condition )) };
 handle_stop_queue:
     pthread_mutex_unlock( &( self->workqueue_state->mutex ));
-    action_replay_log( "%s: workqueue %p exited critical section\n", __func__ );
 
     return result;
 }

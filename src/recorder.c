@@ -240,7 +240,6 @@ static action_replay_return_t action_replay_recorder_t_start_func_t_start( actio
 
     action_replay_return_t result;
 
-    action_replay_log( "%s: locking worker %p before start\n", __func__, self->recorder_state->worker );
     switch(( result = self->recorder_state->worker->start_lock( self->recorder_state->worker )).status )
     {
         case 0:
@@ -252,7 +251,6 @@ static action_replay_return_t action_replay_recorder_t_start_func_t_start( actio
             action_replay_log( "%s: failure locking worker %p, errno = %d\n", __func__, self->recorder_state->worker, result.status );
             return result;
     }
-    action_replay_log( "%s: worker %p locked\n", __func__, self->recorder_state->worker );
 
     if( NULL == ( self->recorder_state->zero_time = action_replay_copy( ( void * ) zero_time )))
     {
@@ -261,7 +259,6 @@ static action_replay_return_t action_replay_recorder_t_start_func_t_start( actio
         goto handle_zero_time_copy_error;
     }
 
-    action_replay_log( "%s: starting worker %p\n", __func__, self->recorder_state->worker );
     if( 0 != ( result = self->recorder_state->worker->start( self->recorder_state->worker, self->recorder_state )).status )
     {
         action_replay_log( "%s: failure starting worker %p\n", __func__, self->recorder_state->worker );
@@ -270,9 +267,7 @@ static action_replay_return_t action_replay_recorder_t_start_func_t_start( actio
     }
 
 handle_zero_time_copy_error:
-    action_replay_log( "%s: unlocking worker %p\n", __func__, self->recorder_state->worker );
     self->recorder_state->worker->start_unlock( self->recorder_state->worker, ( 0 == result.status ));
-    action_replay_log( "%s: worker %p unlocked\n", __func__, self->recorder_state->worker );
     return result;
 }
 
@@ -289,7 +284,6 @@ static action_replay_return_t action_replay_recorder_t_stop_func_t_stop( action_
 
     action_replay_return_t result;
 
-    action_replay_log( "%s: locking worker %p before stopping\n", __func__, self->recorder_state->worker );
     switch(( result = self->recorder_state->worker->stop_lock( self->recorder_state->worker )).status )
     {
         case 0:
@@ -301,7 +295,6 @@ static action_replay_return_t action_replay_recorder_t_stop_func_t_stop( action_
             action_replay_log( "%s: failure locking worker %p, errno = %d\n", __func__, self->recorder_state->worker, result.status );
             return result;
     }
-    action_replay_log( "%s: worker %p locked\n", __func__, self->recorder_state->worker );
 
     if( 1 > write( self->recorder_state->pipe_fd[ PIPE_WRITE ], " ", 1 ) /* force exit from poll */ )
     {
@@ -310,7 +303,6 @@ static action_replay_return_t action_replay_recorder_t_stop_func_t_stop( action_
         goto handle_write_error;
     }
     
-    action_replay_log( "%s: waiting for worker %p to quit\n", __func__, self->recorder_state->worker );
     if( 0 == ( result = self->recorder_state->worker->stop( self->recorder_state->worker )).status )
     {
         action_replay_log( "%s: success stopping worker %p\n", __func__, self->recorder_state->worker );
@@ -319,9 +311,7 @@ static action_replay_return_t action_replay_recorder_t_stop_func_t_stop( action_
     }
 
 handle_write_error:
-    action_replay_log( "%s: unlocking worker %p\n", __func__, self->recorder_state->worker );
     self->recorder_state->worker->stop_unlock( self->recorder_state->worker, ( 0 == result.status ));
-    action_replay_log( "%s: worker %p unlocked\n", __func__, self->recorder_state->worker );
     return result;
 }
 
@@ -371,7 +361,6 @@ static void * action_replay_recorder_t_worker( void * thread_state )
         {
             continue;
         }
-        action_replay_log( "%s: worker %p handles event from %p\n", __func__, recorder_state->worker, recorder_state->input );
 
         struct input_event event;
         if( 0 != action_replay_recorder_t_worker_safe_input_read( descriptors[ POLL_INPUT_DESCRIPTOR ].fd, &event, sizeof( struct input_event )))

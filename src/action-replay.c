@@ -151,9 +151,16 @@ static int replay( int argc, char ** args )
         }
     }
 
+    action_replay_time_t * const zero_time = action_replay_new( action_replay_time_t_class(), action_replay_time_t_args( action_replay_time_t_now() ));
+    if( NULL == zero_time )
+    {
+        action_replay_log( "%s: failure allocating zero_time object\n", __func__ );
+        goto handle_zero_time_allocation_error;
+    }
+
     for( int i = 0; i < argc; ++i )
     {
-        if( 0 != players[ i ]->start( players[ i ] ).status )
+        if( 0 != players[ i ]->start( players[ i ], zero_time ).status )
         {
             action_replay_log( "%s: failure starting player #%d, bailing out\n", __func__, i );
             goto handle_player_start_error;
@@ -173,9 +180,12 @@ static int replay( int argc, char ** args )
         }
     }
     free( players );
+    action_replay_delete( ( void * ) zero_time );
     return EXIT_SUCCESS;
 
 handle_player_start_error:
+    action_replay_delete( ( void * ) zero_time );
+handle_zero_time_allocation_error:
 handle_player_allocation_error:
     for( int i = 0; i < argc; ++i )
     {

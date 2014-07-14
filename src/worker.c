@@ -184,9 +184,10 @@ static action_replay_return_t action_replay_worker_t_func_t_start_lock( action_r
         case WORKER_STARTING:
             /* fall through */
         case WORKER_STOPPING:
-            action_replay_log( "%s: in transition state, cannot continue\n", __func__ );
+            action_replay_log( "%s: worker %p in transition state, cannot continue\n", __func__, self );
             return ( action_replay_return_t const ) { EBUSY };
         case WORKER_STARTED:
+            action_replay_log( "%s: worker %p already started\n", __func__, self );
             return ( action_replay_return_t const ) { EALREADY };
         case WORKER_STOPPED:
             return ( action_replay_return_t const ) { 0 };
@@ -210,9 +211,10 @@ static action_replay_return_t action_replay_worker_t_start_func_t_start( action_
     switch( * worker_status )
     {
         case WORKER_STARTING:
-            action_replay_log( "%s: creating thread\n", __func__ );
+            action_replay_log( "%s: worker %p creating thread\n", __func__, self );
             return ( action_replay_return_t const ) { pthread_create( &( self->worker_state->worker ), NULL, self->worker_state->thread_function, state ) };
         case WORKER_STARTED:
+            action_replay_log( "%s: worker %p already started\n", __func__, self );
             return ( action_replay_return_t const ) { EALREADY };
         case WORKER_STOPPING:
             /* fall through */
@@ -234,7 +236,7 @@ static action_replay_return_t action_replay_worker_t_unlock_func_t_start_unlock(
         return ( action_replay_return_t const ) { EINVAL };
     }
 
-    action_replay_log( "%s: unlocking with condition = %d\n", __func__, ( int ) successful );
+    action_replay_log( "%s: unlocking worker %p with condition = %d\n", __func__, self, ( int ) successful );
 
     action_replay_worker_t_worker_status_t const * const worker_status = OPA_cas_ptr( &( self->worker_state->status ), &worker_starting, ( successful ) ? &worker_started : &worker_stopped );
     switch( * worker_status )
@@ -242,6 +244,7 @@ static action_replay_return_t action_replay_worker_t_unlock_func_t_start_unlock(
         case WORKER_STARTING:
             return ( action_replay_return_t const ) { 0 };
         case WORKER_STARTED:
+            action_replay_log( "%s: worker %p already started\n", __func__, self );
             return ( action_replay_return_t const ) { EALREADY };
         case WORKER_STOPPING:
             /* fall through */
@@ -274,6 +277,7 @@ static action_replay_return_t action_replay_worker_t_func_t_stop_lock( action_re
         case WORKER_STARTED:
             return ( action_replay_return_t const ) { 0 };
         case WORKER_STOPPED:
+            action_replay_log( "%s: worker %p already stopped\n", __func__, self );
             return ( action_replay_return_t const ) { EALREADY };
         default:
             return ( action_replay_return_t const ) { EINVAL };
@@ -295,9 +299,10 @@ static action_replay_return_t action_replay_worker_t_func_t_stop( action_replay_
     switch( * worker_status )
     {
         case WORKER_STOPPING:
-            action_replay_log( "%s: joining thread\n", __func__ );
+            action_replay_log( "%s: worker %p joining thread\n", __func__, self );
             return ( action_replay_return_t const ) { pthread_join( self->worker_state->worker, NULL ) }; /* wait for thread to finish using state */
         case WORKER_STOPPED:
+            action_replay_log( "%s: worker %p already stopped\n", __func__, self );
             return ( action_replay_return_t const ) { EALREADY };
         case WORKER_STARTING:
             /* fall through */
@@ -327,6 +332,7 @@ static action_replay_return_t action_replay_worker_t_unlock_func_t_stop_unlock( 
         case WORKER_STOPPING:
             return ( action_replay_return_t const ) { 0 };
         case WORKER_STOPPED:
+            action_replay_log( "%s: worker %p already stopped\n", __func__, self );
             return ( action_replay_return_t const ) { EALREADY };
         case WORKER_STARTING:
             /* fall through */

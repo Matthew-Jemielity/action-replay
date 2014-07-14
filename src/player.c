@@ -45,6 +45,7 @@ action_replay_player_t_args_t;
 
 struct action_replay_player_t_state_t
 {
+    action_replay_time_t * zero_time;
     action_replay_worker_t * worker;
     action_replay_workqueue_t * queue;
     FILE * input;
@@ -93,6 +94,7 @@ static action_replay_stateful_return_t action_replay_player_t_state_t_new( actio
     if( NULL != ( player_state->queue = action_replay_new( action_replay_workqueue_t_class(), action_replay_workqueue_t_args() )))
     {
         action_replay_log( "%s: %s opened as %p\n", __func__, player_args->path_to_input, player_state->input );
+        player_state->zero_time = NULL;
         OPA_store_ptr( &( player_state->run_flag ), &worker_stop );
         return result;
     }
@@ -124,14 +126,14 @@ static action_replay_return_t action_replay_player_t_state_t_delete( action_repl
     {
         return ( action_replay_return_t const ) { errno };
     }
-    /* output known to be cleaned up */
+    /* zero_time and output known to be cleaned up */
     free( player_state );
     return result;
 }
 
 action_replay_class_t const * action_replay_player_t_class( void );
 
-static action_replay_return_t action_replay_player_t_internal( action_replay_object_oriented_programming_super_operation_t const operation, action_replay_player_t * const restrict player, action_replay_player_t const * const restrict original_player, action_replay_args_t const args, action_replay_player_t_func_t const start, action_replay_player_t_func_t const stop, action_replay_player_t_func_t const join )
+static action_replay_return_t action_replay_player_t_internal( action_replay_object_oriented_programming_super_operation_t const operation, action_replay_player_t * const restrict player, action_replay_player_t const * const restrict original_player, action_replay_args_t const args, action_replay_player_t_start_func_t const start, action_replay_player_t_stop_func_t const stop, action_replay_player_t_stop_func_t const join )
 {
     if( NULL == args.state )
     {
@@ -156,13 +158,13 @@ static action_replay_return_t action_replay_player_t_internal( action_replay_obj
     return ( action_replay_return_t const ) { result.status };
 }
 
-static action_replay_return_t action_replay_player_t_func_t_start( action_replay_player_t * const self );
-static action_replay_return_t action_replay_player_t_func_t_stop( action_replay_player_t * const self );
-static action_replay_return_t action_replay_player_t_func_t_join( action_replay_player_t * const self );
+static action_replay_return_t action_replay_player_t_start_func_t_start( action_replay_player_t * const restrict self, action_replay_time_t const * const restrict zero_time );
+static action_replay_return_t action_replay_player_t_stop_func_t_stop( action_replay_player_t * const self );
+static action_replay_return_t action_replay_player_t_stop_func_t_join( action_replay_player_t * const self );
 
 static inline action_replay_return_t action_replay_player_t_constructor( void * const object, action_replay_args_t const args )
 {
-    return action_replay_player_t_internal( CONSTRUCT, object, NULL, args, action_replay_player_t_func_t_start, action_replay_player_t_func_t_stop, action_replay_player_t_func_t_join );
+    return action_replay_player_t_internal( CONSTRUCT, object, NULL, args, action_replay_player_t_start_func_t_start, action_replay_player_t_stop_func_t_stop, action_replay_player_t_stop_func_t_join );
 }
 
 static action_replay_return_t action_replay_player_t_destructor( void * const object )
@@ -214,12 +216,14 @@ static action_replay_return_t action_replay_player_t_copier( void * const restri
 
 static FILE * action_replay_player_t_open_output_from_header( FILE * const input );
 
-static action_replay_return_t action_replay_player_t_func_t_start( action_replay_player_t * const self )
+static action_replay_return_t action_replay_player_t_start_func_t_start( action_replay_player_t * const restrict self, action_replay_time_t const * const restrict zero_time )
 {
     if
     (
         ( NULL == self )
+        || ( NULL == zero_time )
         || ( ! action_replay_is_type( ( void * ) self, action_replay_player_t_class() ))
+        || ( ! action_replay_is_type( ( void * ) zero_time, action_replay_time_t_class() ))
     )
     {
         return ( action_replay_return_t const ) { EINVAL };
@@ -227,7 +231,6 @@ static action_replay_return_t action_replay_player_t_func_t_start( action_replay
 
     action_replay_return_t result;
 
-    action_replay_log( "%s: locking parsing worker %p before start\n", __func__, self->player_state->worker );
     switch(( result = self->player_state->worker->start_lock( self->player_state->worker )).status )
     {
         case 0:
@@ -239,7 +242,6 @@ static action_replay_return_t action_replay_player_t_func_t_start( action_replay
             action_replay_log( "%s: cannot lock parsing worker %p, errno = %d\n", __func__, self->player_state->worker, result.status );
             return result;
     }
-    action_replay_log( "%s: parsing worker %p locked\n", __func__, self->player_state->worker );
 
     if( NULL == ( self->player_state->output = action_replay_player_t_open_output_from_header( self->player_state->input )))
     {
@@ -248,33 +250,39 @@ static action_replay_return_t action_replay_player_t_func_t_start( action_replay
         goto handle_open_output_error;
     }
 
+    if( NULL == ( self->player_state->zero_time = action_replay_copy( ( void * ) zero_time )))
+    {
+        action_replay_log( "%s: failure allocating zero_time object\n", __func__ );
+        result.status = errno;
+        goto handle_zero_time_copy_error;
+    }
+
     OPA_store_ptr( &( self->player_state->run_flag ), &worker_continue );
 
-    action_replay_log( "%s: starting parsing worker %p\n", __func__, self->player_state->worker );
     if( 0 != ( result = self->player_state->worker->start( self->player_state->worker, self->player_state )).status )
     {
         action_replay_log( "%s: failure starting parsing worker %p thread\n", __func__, self->player_state->worker );
+        action_replay_delete( ( void * ) ( self->player_state->zero_time ));
+        self->player_state->zero_time = NULL;
         OPA_store_ptr( &( self->player_state->run_flag ), &worker_stop );
     }
 
+handle_zero_time_copy_error:
     if( 0 != result.status )
     {
         fclose( self->player_state->output );
     }
 handle_open_output_error:
-    action_replay_log( "%s: unlocking worker %p\n", __func__, self->player_state->worker );
     self->player_state->worker->start_unlock( self->player_state->worker, ( 0 == result.status ));
-    action_replay_log( "%s: worker unlocked %p\n", __func__, self->player_state->worker );
     return result;
 }
 
-typedef void ( * action_replay_player_t_func_t_finish_worker_operation_t )( action_replay_player_t * const self );
+typedef void ( * action_replay_player_t_stop_func_t_finish_worker_operation_t )( action_replay_player_t * const self );
 
-static action_replay_return_t action_replay_player_t_func_t_finish_worker( action_replay_player_t * const self, action_replay_player_t_func_t_finish_worker_operation_t const operation )
+static action_replay_return_t action_replay_player_t_stop_func_t_finish_worker( action_replay_player_t * const self, action_replay_player_t_stop_func_t_finish_worker_operation_t const operation )
 {
     action_replay_return_t result;
 
-    action_replay_log( "%s: locking parsing worker %p before stopping\n", __func__, self->player_state->worker );
     switch(( result = self->player_state->worker->stop_lock( self->player_state->worker )).status )
     {
         case 0:
@@ -286,28 +294,24 @@ static action_replay_return_t action_replay_player_t_func_t_finish_worker( actio
             action_replay_log( "%s: failure locking parsing worker %p, errno = %d\n", __func__, self->player_state->worker, result.status );
             return result;
     }
-    action_replay_log( "%s: parsing worker %p locked\n", __func__, self->player_state->worker );
 
     operation( self );
 
-    action_replay_log( "%s: waiting for parsing worker %p to quit\n", __func__, self->player_state->worker );
     if( 0 != ( result = self->player_state->worker->stop( self->player_state->worker )).status )
     {
         action_replay_log( "%s: failure stopping parsing worker %p\n", __func__, self->player_state->worker );
     }
 
-    action_replay_log( "%s: unlocking parsing worker %p\n", __func__, self->player_state->worker );
     self->player_state->worker->stop_unlock( self->player_state->worker, ( 0 == result.status ));
-    action_replay_log( "%s: parsing worker %p unlocked\n", __func__, self->player_state->worker );
     return result;
 }
 
-static inline void action_replay_player_t_func_t_finish_worker_operation_t_stop( action_replay_player_t * const self )
+static inline void action_replay_player_t_stop_func_t_finish_worker_operation_t_stop( action_replay_player_t * const self )
 {
     OPA_store_ptr( &( self->player_state->run_flag ), &worker_stop );
 }
 
-static action_replay_return_t action_replay_player_t_func_t_stop( action_replay_player_t * const self )
+static action_replay_return_t action_replay_player_t_stop_func_t_stop( action_replay_player_t * const self )
 {
     if
     (
@@ -320,7 +324,7 @@ static action_replay_return_t action_replay_player_t_func_t_stop( action_replay_
 
     action_replay_return_t result;
 
-    if( 0 != ( result = action_replay_player_t_func_t_finish_worker( self, action_replay_player_t_func_t_finish_worker_operation_t_stop )).status )
+    if( 0 != ( result = action_replay_player_t_stop_func_t_finish_worker( self, action_replay_player_t_stop_func_t_finish_worker_operation_t_stop )).status )
     {
         if( EALREADY == result.status )
         {
@@ -330,7 +334,6 @@ static action_replay_return_t action_replay_player_t_func_t_stop( action_replay_
         return result;
     }
 
-    action_replay_log( "%s: stopping workqueue %p\n", __func__, self->player_state->queue );
     result = self->player_state->queue->stop( self->player_state->queue );
 
     if( 0 != result.status )
@@ -338,18 +341,19 @@ static action_replay_return_t action_replay_player_t_func_t_stop( action_replay_
         action_replay_log( "%s: failure stopping workqueue %p\n", __func__, self->player_state->queue );
         return result;
     }
-    action_replay_log( "%s: workqueue %p stopped\n", __func__, self->player_state->queue );
 
+    action_replay_delete( ( void * ) ( self->player_state->zero_time ));
+    self->player_state->zero_time = NULL;
     fclose( self->player_state->output );
     return result;
 }
 
-static inline void action_replay_player_t_func_t_finish_worker_operation_t_join( action_replay_player_t * const self )
+static inline void action_replay_player_t_stop_func_t_finish_worker_operation_t_join( action_replay_player_t * const self )
 {
     ( void ) self;
 }
 
-static action_replay_return_t action_replay_player_t_func_t_join( action_replay_player_t * const self )
+static action_replay_return_t action_replay_player_t_stop_func_t_join( action_replay_player_t * const self )
 {
     if
     (
@@ -362,7 +366,7 @@ static action_replay_return_t action_replay_player_t_func_t_join( action_replay_
 
     action_replay_return_t result;
 
-    if( 0 != ( result = action_replay_player_t_func_t_finish_worker( self, action_replay_player_t_func_t_finish_worker_operation_t_join )).status )
+    if( 0 != ( result = action_replay_player_t_stop_func_t_finish_worker( self, action_replay_player_t_stop_func_t_finish_worker_operation_t_join )).status )
     {
         if( EALREADY == result.status )
         {
@@ -372,7 +376,6 @@ static action_replay_return_t action_replay_player_t_func_t_join( action_replay_
         return result;
     }
 
-    action_replay_log( "%s: waiting for workqueue %p to finish processing items\n", __func__, self->player_state->queue );
     result = self->player_state->queue->join( self->player_state->queue );
 
     if( 0 != result.status )
@@ -380,23 +383,23 @@ static action_replay_return_t action_replay_player_t_func_t_join( action_replay_
         action_replay_log( "%s: failure joining workqueue %p\n", __func__, self->player_state->queue );
         return result;
     }
-    action_replay_log( "%s: workqueue %p finished\n", __func__, self->player_state->queue );
 
+    action_replay_delete( ( void * ) ( self->player_state->zero_time ));
+    self->player_state->zero_time = NULL;
     fclose( self->player_state->output );
     return result;
 }
 
 typedef struct
 {
+    action_replay_time_t * zero_time;
     FILE * output;
-    uint64_t nanoseconds;
-    uint16_t type;
-    uint16_t code;
-    int32_t value;
+    struct timespec sleep;
+    struct input_event event;
 }
 action_replay_player_t_worker_parse_state_t;
 
-static action_replay_player_t_worker_parse_state_t * action_replay_player_t_parse_line( char * const restrict buffer, size_t const size, FILE * const restrict output, jsmntok_t * const restrict tokens );
+static action_replay_player_t_worker_parse_state_t * action_replay_player_t_parse_line( char * const restrict buffer, size_t const size, action_replay_time_t * const restrict zero_time, FILE * const restrict output, jsmntok_t * const restrict tokens );
 static void action_replay_player_t_process_item( void * const state );
 
 static void * action_replay_player_t_worker( void * thread_state )
@@ -404,13 +407,11 @@ static void * action_replay_player_t_worker( void * thread_state )
     action_replay_player_t_state_t * const player_state = thread_state;
     jsmntok_t tokens[ INPUT_JSON_TOKENS_COUNT ];
 
-    action_replay_log( "%s: starting workqueue %p\n", __func__, player_state->queue );
     if( 0 != player_state->queue->start( player_state->queue ).status )
     {
         action_replay_log( "%s: failure starting workqueue %p\n", __func__, player_state->queue );
         return NULL;
     }
-    action_replay_log( "%s: workqueue %p started\n", __func__, player_state->queue );
 
     char * buffer = NULL;
     size_t size = 0;
@@ -429,7 +430,7 @@ static void * action_replay_player_t_worker( void * thread_state )
             continue;
         }
 
-        action_replay_player_t_worker_parse_state_t * parse_state = action_replay_player_t_parse_line( buffer, size, player_state->output, tokens );
+        action_replay_player_t_worker_parse_state_t * parse_state = action_replay_player_t_parse_line( buffer, size, player_state->zero_time, player_state->output, tokens );
 
         if( NULL == parse_state )
         {
@@ -451,7 +452,7 @@ static void * action_replay_player_t_worker( void * thread_state )
     return NULL;
 }
 
-static action_replay_player_t_worker_parse_state_t * action_replay_player_t_parse_line( char * const restrict buffer, size_t const size, FILE * const restrict output, jsmntok_t * const restrict tokens )
+static action_replay_player_t_worker_parse_state_t * action_replay_player_t_parse_line( char * const restrict buffer, size_t const size, action_replay_time_t * const restrict zero_time, FILE * const restrict output, jsmntok_t * const restrict tokens )
 {
     jsmn_parser parser;
 
@@ -461,7 +462,6 @@ static action_replay_player_t_worker_parse_state_t * action_replay_player_t_pars
         action_replay_log( "%s: failure parsing JSON, buffer = %s\n", __func__, buffer );
         return NULL;
     }
-    action_replay_log( "%s: parsed JSON line from input file\n", __func__ );
 
     /* limit substrings in buffer */
     buffer[ tokens[ INPUT_JSON_TIME_TOKEN ].end ] = '\0';
@@ -477,31 +477,41 @@ static action_replay_player_t_worker_parse_state_t * action_replay_player_t_pars
         return NULL;
     }
 
+    parse_state->zero_time = zero_time;
     parse_state->output = output;
-    parse_state->nanoseconds = strtoull( buffer + tokens[ INPUT_JSON_TIME_TOKEN ].start, NULL, 10 );
-    parse_state->type = ( uint16_t ) strtoul( buffer + tokens[ INPUT_JSON_TYPE_TOKEN ].start, NULL, 10 );
-    parse_state->code = ( uint16_t ) strtoul( buffer + tokens[ INPUT_JSON_CODE_TOKEN ].start, NULL, 10 );
-    parse_state->value = strtol( buffer + tokens[ INPUT_JSON_VALUE_TOKEN ].start, NULL, 10 );
+    parse_state->sleep = action_replay_time_t_from_nanoseconds( strtoull( buffer + tokens[ INPUT_JSON_TIME_TOKEN ].start, NULL, 10 ));
+    parse_state->event.type = ( uint16_t ) strtoul( buffer + tokens[ INPUT_JSON_TYPE_TOKEN ].start, NULL, 10 );
+    parse_state->event.code = ( uint16_t ) strtoul( buffer + tokens[ INPUT_JSON_CODE_TOKEN ].start, NULL, 10 );
+    parse_state->event.value = strtol( buffer + tokens[ INPUT_JSON_VALUE_TOKEN ].start, NULL, 10 );
 
-    action_replay_log( "%s: returning prepared workqueue item state\n", __func__ );
     return parse_state;
 }
 
 static void action_replay_player_t_process_item( void * const state )
 {
     action_replay_player_t_worker_parse_state_t * const parse_state = state;
-    struct input_event event = {
-        .type = parse_state->type,
-        .code = parse_state->code,
-        .value = parse_state->value
-    };
+    ssize_t const write_size = sizeof( struct input_event );
 
-    if( 0 < parse_state->nanoseconds )
+    if
+    (
+        ( 0 < parse_state->sleep.tv_sec )
+        || ( 0 < parse_state->sleep.tv_nsec )
+    )
     {
-        nanosleep( ( struct timespec const [] ) { action_replay_time_t_from_nanoseconds( parse_state->nanoseconds ) }, NULL );
+        parse_state->zero_time->add( parse_state->zero_time, parse_state->sleep );
+        struct timespec const now = action_replay_time_t_now();
+        if( E2BIG == parse_state->zero_time->sub( parse_state->zero_time, now ).status )
+        {
+            goto handle_skip_sleep;
+        }
+        struct timespec const sleep_time = action_replay_time_t_from_time_t( parse_state->zero_time );
+        parse_state->zero_time->add( parse_state->zero_time, now );
+
+        nanosleep( &sleep_time, NULL );
     }
 
-    if( ( ssize_t ) sizeof( struct input_event ) > write( fileno( parse_state->output ), &event, sizeof( struct input_event )))
+handle_skip_sleep:
+    if( write_size > write( fileno( parse_state->output ), &( parse_state->event ), write_size ))
     {
         action_replay_log( "%s: failure writing to output device %p\n", __func__, parse_state->output );
     }
