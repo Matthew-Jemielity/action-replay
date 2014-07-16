@@ -17,7 +17,11 @@
 
 typedef struct action_replay_log_t_state_t action_replay_log_t_state_t;
 typedef struct action_replay_log_t action_replay_log_t;
-typedef void ( * action_replay_log_t_func_t )( action_replay_log_t const * const self, char const * const format, va_list list );
+typedef void ( * action_replay_log_t_func_t )(
+    action_replay_log_t const * const restrict self,
+    char const * const restrict format,
+    va_list list
+);
 
 struct action_replay_log_t
 {
@@ -32,11 +36,13 @@ struct action_replay_log_t_state_t
     FILE * output;
 };
 
-static action_replay_stateful_return_t action_replay_log_t_state_t_new( action_replay_args_t const args )
+static action_replay_stateful_return_t
+action_replay_log_t_state_t_new( action_replay_args_t const args )
 {
     action_replay_stateful_return_t result;
 
-    if( NULL == ( result.state = calloc( 1, sizeof( action_replay_log_t_state_t ))))
+    result.state = calloc( 1, sizeof( action_replay_log_t_state_t ));
+    if( NULL == result.state )
     {
         result.status = ENOMEM;
         return result;
@@ -50,7 +56,10 @@ static action_replay_stateful_return_t action_replay_log_t_state_t_new( action_r
     return result;
 }
 
-static action_replay_return_t action_replay_log_t_state_t_delete( action_replay_log_t_state_t * const log_state )
+static action_replay_return_t
+action_replay_log_t_state_t_delete(
+    action_replay_log_t_state_t * const log_state
+)
 {
     if( 0 != fclose( log_state->output ))
     {
@@ -62,7 +71,15 @@ static action_replay_return_t action_replay_log_t_state_t_delete( action_replay_
 
 static action_replay_class_t const * action_replay_log_t_class( void );
 
-static action_replay_return_t action_replay_log_t_internal( action_replay_object_oriented_programming_super_operation_t const operation, action_replay_log_t * const restrict log, action_replay_log_t const * const restrict original_log, action_replay_args_t const args, action_replay_log_t_func_t const log_func )
+static action_replay_return_t
+action_replay_log_t_internal(
+    action_replay_object_oriented_programming_super_operation_t const
+        operation,
+    action_replay_log_t * const restrict log,
+    action_replay_log_t const * const restrict original_log,
+    action_replay_args_t const args,
+    action_replay_log_t_func_t const log_func
+)
 {
     SUPER( operation, action_replay_log_t_class, log, original_log, args );
 
@@ -80,14 +97,30 @@ static action_replay_return_t action_replay_log_t_internal( action_replay_object
     return ( action_replay_return_t const ) { 0 };
 }
 
-static void action_replay_log_t_func_t_log( action_replay_log_t const * const self, char const * const format, va_list list );
+static void
+action_replay_log_t_func_t_log(
+    action_replay_log_t const * const restrict self,
+    char const * const restrict format,
+    va_list list
+);
 
-static inline action_replay_return_t action_replay_log_t_constructor( void * const object, action_replay_args_t const args )
+static inline
+action_replay_return_t action_replay_log_t_constructor(
+    void * const object,
+    action_replay_args_t const args
+)
 {
-    return action_replay_log_t_internal( CONSTRUCT, object, NULL, args, action_replay_log_t_func_t_log );
+    return action_replay_log_t_internal(
+        CONSTRUCT,
+        object,
+        NULL,
+        args,
+        action_replay_log_t_func_t_log
+    );
 }
 
-static action_replay_return_t action_replay_log_t_destructor( void * const object )
+static action_replay_return_t
+action_replay_log_t_destructor( void * const object )
 {
     action_replay_log_t * const log = object;
     action_replay_return_t result = { 0 };
@@ -96,10 +129,15 @@ static action_replay_return_t action_replay_log_t_destructor( void * const objec
     {
         return result;
     }
-
-    SUPER( DESTRUCT, action_replay_log_t_class, log, NULL, action_replay_args_t_default_args() );
-
-    if( 0 == ( result = action_replay_log_t_state_t_delete( log->log_state )).status )
+    SUPER(
+        DESTRUCT,
+        action_replay_log_t_class,
+        log,
+        NULL,
+        action_replay_args_t_default_args()
+    );
+    result = action_replay_log_t_state_t_delete( log->log_state );
+    if( 0 == result.status )
     {
         log->log_state = NULL;
     }
@@ -107,19 +145,31 @@ static action_replay_return_t action_replay_log_t_destructor( void * const objec
     return result;
 }
 
-static action_replay_return_t action_replay_log_t_copier( void * const restrict copy, void const * const restrict original )
+static action_replay_return_t
+action_replay_log_t_copier(
+    void * const restrict copy,
+    void const * const restrict original
+)
 {
     ( void ) copy;
     ( void ) original;
     return ( action_replay_return_t const ) { ENOSYS };
 }
 
-static void action_replay_log_t_func_t_log( action_replay_log_t const * const self, char const * const format, va_list list )
+static void
+action_replay_log_t_func_t_log(
+    action_replay_log_t const * const restrict self,
+    char const * const restrict format,
+    va_list list
+)
 {
     if
     (
         ( NULL == self )
-        || ( ! action_replay_is_type( ( void * ) self, action_replay_log_t_class() ))
+        || ( ! action_replay_is_type(
+            ( void * ) self,
+            action_replay_log_t_class()
+        ))
     )
     {
         return;
@@ -130,7 +180,10 @@ static void action_replay_log_t_func_t_log( action_replay_log_t const * const se
 
 static action_replay_class_t const * action_replay_log_t_class( void )
 {
-    static action_replay_class_t_func_t const inheritance[] = { action_replay_stateful_object_t_class, NULL };
+    static action_replay_class_t_func_t const inheritance[] = {
+        action_replay_stateful_object_t_class,
+        NULL
+    };
     static action_replay_class_t const result =
     {
         sizeof( action_replay_log_t ),
@@ -143,7 +196,8 @@ static action_replay_class_t const * action_replay_log_t_class( void )
     return &result;
 }
 
-static action_replay_return_t action_replay_log_t_args_t_destructor( void * const state )
+static action_replay_return_t
+action_replay_log_t_args_t_destructor( void * const state )
 {
     action_replay_log_t_state_t * const log_args = state;
 
@@ -152,14 +206,17 @@ static action_replay_return_t action_replay_log_t_args_t_destructor( void * cons
         return ( action_replay_return_t const ) { errno };
     }
     free( state );
+
     return ( action_replay_return_t const ) { 0 };
 }
 
-static action_replay_stateful_return_t action_replay_log_t_args_t_copier( void * const state )
+static action_replay_stateful_return_t
+action_replay_log_t_args_t_copier( void * const state )
 {
     action_replay_stateful_return_t result;
 
-    if( NULL == ( result.state = calloc( 1, sizeof( action_replay_log_t_state_t ))))
+    result.state = calloc( 1, sizeof( action_replay_log_t_state_t ));
+    if( NULL == result.state )
     {
         result.status = ENOMEM;
         return result;
@@ -169,7 +226,8 @@ static action_replay_stateful_return_t action_replay_log_t_args_t_copier( void *
     action_replay_log_t_state_t * const log_args = result.state;
     action_replay_log_t_state_t const * const original_log_args = state;
 
-    if( NULL != ( log_args->output = fdopen( dup( fileno( original_log_args->output )), "a" )))
+    log_args->output = fdopen( dup( fileno( original_log_args->output )), "a" );
+    if( NULL != log_args->output )
     {
         return result;
     }
@@ -180,7 +238,8 @@ static action_replay_stateful_return_t action_replay_log_t_args_t_copier( void *
     return result;
 }
 
-static action_replay_args_t action_replay_log_t_args( FILE * const output )
+static action_replay_args_t
+action_replay_log_t_args( FILE * const output )
 {
     if( NULL == output )
     {
@@ -188,7 +247,8 @@ static action_replay_args_t action_replay_log_t_args( FILE * const output )
     }
 
     action_replay_log_t_state_t args = { output };
-    action_replay_stateful_return_t const copy = action_replay_log_t_args_t_copier( &args );
+    action_replay_stateful_return_t const copy =
+        action_replay_log_t_args_t_copier( &args );
 
     if( 0 != copy.status )
     {
@@ -206,12 +266,17 @@ static OPA_ptr_t logger = OPA_PTR_T_INITIALIZER( NULL );
 
 action_replay_return_t action_replay_log_init( FILE * const output )
 {
-    action_replay_log_t * const log = action_replay_new( action_replay_log_t_class(), action_replay_log_t_args( output ));
+    action_replay_log_t * const log = action_replay_new(
+        action_replay_log_t_class(),
+        action_replay_log_t_args( output )
+    );
+
     if( NULL == log )
     {
         return ( action_replay_return_t const ) { errno };
     }
     OPA_store_ptr( &logger, log );
+
     return ( action_replay_return_t const ) { 0 };
 }
 
@@ -233,12 +298,15 @@ void action_replay_log( char const * const format, ... )
 
 action_replay_return_t action_replay_log_close( void )
 {
-    action_replay_return_t const result = { action_replay_delete( OPA_load_ptr( &logger )) };
+    action_replay_return_t const result = {
+        action_replay_delete( OPA_load_ptr( &logger ))
+    };
 
     if( 0 == result.status )
     {
         OPA_store_ptr( &logger, NULL );
     }
+
     return result;
 }
 

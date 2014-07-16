@@ -54,15 +54,24 @@ struct action_replay_recorder_t_state_t
     int pipe_fd[ PIPE_DESCRIPTORS_COUNT ];
 };
 
-typedef action_replay_error_t ( * action_replay_recorder_t_header_func_t )( char const * const restrict path_to_input_device, FILE * const restrict output );
+typedef action_replay_error_t
+( * action_replay_recorder_t_header_func_t )(
+    char const * const restrict path_to_input_device,
+    FILE * const restrict output
+);
 
 static void * action_replay_recorder_t_worker( void * thread_state );
 
-static action_replay_stateful_return_t action_replay_recorder_t_state_t_new( action_replay_args_t const args, action_replay_recorder_t_header_func_t const header_operation )
+static action_replay_stateful_return_t
+action_replay_recorder_t_state_t_new(
+    action_replay_args_t const args,
+    action_replay_recorder_t_header_func_t const header_operation
+)
 {
     action_replay_stateful_return_t result;
 
-    if( NULL == ( result.state = calloc( 1, sizeof( action_replay_recorder_t_state_t ))))
+    result.state = calloc( 1, sizeof( action_replay_recorder_t_state_t ));
+    if( NULL == result.state )
     {
         result.status = ENOMEM;
         return result;
@@ -72,12 +81,14 @@ static action_replay_stateful_return_t action_replay_recorder_t_state_t_new( act
     action_replay_recorder_t_args_t * const recorder_args = args.state;
     action_replay_recorder_t_state_t * const recorder_state = result.state;
 
-    if( NULL == ( recorder_state->input = fopen( recorder_args->path_to_input_device, "r" )))
+    recorder_state->input = fopen( recorder_args->path_to_input_device, "r" );
+    if( NULL == recorder_state->input )
     {
         result.status = errno;
         goto handle_path_to_input_device_open_error;
     }
-    if( NULL == ( recorder_state->output = fopen( recorder_args->path_to_output, "w" )))
+    recorder_state->output = fopen( recorder_args->path_to_output, "w" );
+    if( NULL == recorder_state->output )
     {
         result.status = errno;
         goto handle_path_to_output_open_error;
@@ -87,16 +98,27 @@ static action_replay_stateful_return_t action_replay_recorder_t_state_t_new( act
         result.status = errno;
         goto handle_pipe_error;
     }
-
-    if( NULL == ( recorder_state->worker = action_replay_new( action_replay_worker_t_class(), action_replay_worker_t_args( action_replay_recorder_t_worker ))))
+    recorder_state->worker = action_replay_new(
+        action_replay_worker_t_class(),
+        action_replay_worker_t_args( action_replay_recorder_t_worker )
+    );
+    if( NULL == recorder_state->worker )
     {
         result.status = errno;
         goto handle_worker_new_error;
     }
-
-    if( 0 == ( result.status = header_operation( recorder_args->path_to_input_device, recorder_state->output )))
+    result.status = header_operation(
+        recorder_args->path_to_input_device,
+        recorder_state->output
+    );
+    if( 0 == result.status )
     {
-        action_replay_log( "%s: %s opened as %p\n", __func__, recorder_args->path_to_input_device, recorder_state->input );
+        action_replay_log(
+            "%s: %s opened as %p\n",
+            __func__,
+            recorder_args->path_to_input_device,
+            recorder_state->input
+        );
         recorder_state->zero_time = NULL;
         return result;
     }
@@ -115,16 +137,20 @@ handle_path_to_input_device_open_error:
     return result;
 }
 
-static action_replay_return_t action_replay_recorder_t_state_t_delete( action_replay_recorder_t_state_t * const recorder_state )
+static action_replay_return_t
+action_replay_recorder_t_state_t_delete(
+    action_replay_recorder_t_state_t * const recorder_state
+)
 {
-    action_replay_error_t const error = { action_replay_delete( ( void * ) recorder_state->worker ) };
+    action_replay_error_t const error = {
+        action_replay_delete( ( void * ) recorder_state->worker )
+    };
 
     if( 0 != error )
     {
         return ( action_replay_return_t const ) { error };
     }
     recorder_state->worker = NULL;
-
     if
     (
         ( -1 == close( recorder_state->pipe_fd[ PIPE_READ ] ))
@@ -135,31 +161,52 @@ static action_replay_return_t action_replay_recorder_t_state_t_delete( action_re
     {
         return ( action_replay_return_t const ) { errno };
     }
-    
     /* zero_time known to be NULL */
     free( recorder_state );
+
     return ( action_replay_return_t const ) { 0 };
 }
 
 action_replay_class_t const * action_replay_recorder_t_class( void );
 
-static action_replay_return_t action_replay_recorder_t_internal( action_replay_object_oriented_programming_super_operation_t const operation, action_replay_recorder_t * const restrict recorder, action_replay_recorder_t const * const restrict original_recorder, action_replay_args_t const args, action_replay_recorder_t_header_func_t const header_operation, action_replay_recorder_t_start_func_t const start, action_replay_recorder_t_stop_func_t const stop )
+static action_replay_return_t
+action_replay_recorder_t_internal(
+    action_replay_object_oriented_programming_super_operation_t const
+        operation,
+    action_replay_recorder_t * const restrict recorder,
+    action_replay_recorder_t const * const restrict original_recorder,
+    action_replay_args_t const args,
+    action_replay_recorder_t_header_func_t const header_operation,
+    action_replay_recorder_t_start_func_t const start,
+    action_replay_recorder_t_stop_func_t const stop
+)
 {
     if( NULL == args.state )
     {
         return ( action_replay_return_t const ) { EINVAL };
     }
-
-    SUPER( operation, action_replay_recorder_t_class, recorder, original_recorder, args );
+    SUPER(
+        operation,
+        action_replay_recorder_t_class,
+        recorder,
+        original_recorder,
+        args
+    );
 
     action_replay_stateful_return_t result;
     
-    if( 0 != ( result = action_replay_recorder_t_state_t_new( args, header_operation )).status )
+    result = action_replay_recorder_t_state_t_new( args, header_operation );
+    if( 0 != result.status )
     {
-        SUPER( DESTRUCT, action_replay_recorder_t_class, recorder, NULL, args );
+        SUPER(
+            DESTRUCT,
+            action_replay_recorder_t_class,
+            recorder,
+            NULL,
+            args
+        );
         return ( action_replay_return_t const ) { result.status };
     }
-
     recorder->recorder_state = result.state;
     recorder->start = start;
     recorder->stop = stop;
@@ -167,16 +214,40 @@ static action_replay_return_t action_replay_recorder_t_internal( action_replay_o
     return ( action_replay_return_t const ) { result.status };
 }
 
-static action_replay_error_t action_replay_recorder_t_write_header( char const * const path_to_input_device, FILE * const output );
-static action_replay_return_t action_replay_recorder_t_start_func_t_start( action_replay_recorder_t * const restrict self, action_replay_time_t const * const restrict zero_time );
-static action_replay_return_t action_replay_recorder_t_stop_func_t_stop( action_replay_recorder_t * const self );
+static action_replay_error_t
+action_replay_recorder_t_write_header(
+    char const * const path_to_input_device,
+    FILE * const output
+);
+static action_replay_return_t
+action_replay_recorder_t_start_func_t_start(
+    action_replay_recorder_t * const restrict self,
+    action_replay_time_t const * const restrict zero_time
+);
+static action_replay_return_t
+action_replay_recorder_t_stop_func_t_stop(
+    action_replay_recorder_t * const self
+);
 
-static inline action_replay_return_t action_replay_recorder_t_constructor( void * const object, action_replay_args_t const args )
+static inline action_replay_return_t
+action_replay_recorder_t_constructor(
+    void * const object,
+    action_replay_args_t const args
+)
 {
-    return action_replay_recorder_t_internal( CONSTRUCT, object, NULL, args, action_replay_recorder_t_write_header, action_replay_recorder_t_start_func_t_start, action_replay_recorder_t_stop_func_t_stop );
+    return action_replay_recorder_t_internal(
+        CONSTRUCT,
+        object,
+        NULL,
+        args,
+        action_replay_recorder_t_write_header,
+        action_replay_recorder_t_start_func_t_start,
+        action_replay_recorder_t_stop_func_t_stop
+    );
 }
 
-static action_replay_return_t action_replay_recorder_t_destructor( void * const object )
+static action_replay_return_t
+action_replay_recorder_t_destructor( void * const object )
 {
     action_replay_recorder_t * const recorder = object;
     action_replay_return_t result = { 0 };
@@ -185,15 +256,21 @@ static action_replay_return_t action_replay_recorder_t_destructor( void * const 
     {
         return result;
     }
-
     if( 0 != ( result = recorder->stop( recorder )).status )
     {
         return result;
     }
-
-    SUPER( DESTRUCT, action_replay_recorder_t_class, recorder, NULL, action_replay_args_t_default_args() );
-
-    if( 0 == ( result = action_replay_recorder_t_state_t_delete( recorder->recorder_state )).status )
+    SUPER(
+        DESTRUCT,
+        action_replay_recorder_t_class,
+        recorder,
+        NULL,
+        action_replay_args_t_default_args()
+    );
+    result = action_replay_recorder_t_state_t_delete(
+        recorder->recorder_state
+    );
+    if( 0 == result.status )
     {
         recorder->recorder_state = NULL;
     }
@@ -201,19 +278,36 @@ static action_replay_return_t action_replay_recorder_t_destructor( void * const 
     return result;
 }
 
-static action_replay_error_t action_replay_recorder_t_header_nop( char const * const path_to_input_device, FILE * const output );
+static action_replay_error_t
+action_replay_recorder_t_header_nop(
+    char const * const path_to_input_device,
+    FILE * const output
+);
 
-static action_replay_return_t action_replay_recorder_t_copier( void * const restrict copy, void const * const restrict original )
+static action_replay_return_t
+action_replay_recorder_t_copier(
+    void * const restrict copy,
+    void const * const restrict original
+)
 {
     action_replay_recorder_t const * const original_recorder = original;
-    action_replay_args_t_return_t args = original_recorder->args( ( void * ) original_recorder );
+    action_replay_args_t_return_t args =
+        original_recorder->args( ( void * ) original_recorder );
 
     if( 0 != args.status )
     {
         return ( action_replay_return_t const ) { args.status };
     }
 
-    action_replay_return_t const result = action_replay_recorder_t_internal( COPY, copy, original, args.args, action_replay_recorder_t_header_nop, original_recorder->start, original_recorder->stop );
+    action_replay_return_t const result = action_replay_recorder_t_internal(
+        COPY,
+        copy,
+        original,
+        args.args,
+        action_replay_recorder_t_header_nop,
+        original_recorder->start,
+        original_recorder->stop
+    );
 
     /* 
      * error here will result in unhandled memory leak
@@ -225,14 +319,24 @@ static action_replay_return_t action_replay_recorder_t_copier( void * const rest
     return result;
 }
 
-static action_replay_return_t action_replay_recorder_t_start_func_t_start( action_replay_recorder_t * const restrict self, action_replay_time_t const * const restrict zero_time )
+static action_replay_return_t
+action_replay_recorder_t_start_func_t_start(
+    action_replay_recorder_t * const restrict self,
+    action_replay_time_t const * const restrict zero_time
+)
 {
     if
     (
         ( NULL == self )
         || ( NULL == zero_time )
-        || ( ! action_replay_is_type( ( void * ) self, action_replay_recorder_t_class() ))
-        || ( ! action_replay_is_type( ( void * ) zero_time, action_replay_time_t_class() ))
+        || ( ! action_replay_is_type(
+            ( void * ) self,
+            action_replay_recorder_t_class()
+        ))
+        || ( ! action_replay_is_type(
+            ( void * ) zero_time,
+            action_replay_time_t_class()
+        ))
     )
     {
         return ( action_replay_return_t const ) { EINVAL };
@@ -240,43 +344,75 @@ static action_replay_return_t action_replay_recorder_t_start_func_t_start( actio
 
     action_replay_return_t result;
 
-    switch(( result = self->recorder_state->worker->start_lock( self->recorder_state->worker )).status )
+    result = self->recorder_state->worker->start_lock(
+        self->recorder_state->worker
+    );
+    switch( result.status )
     {
         case 0:
             break;
         case EALREADY:
-            action_replay_log( "%s: worker %p already started\n", __func__, self->recorder_state->worker );
+            action_replay_log(
+                "%s: worker %p already started\n",
+                __func__,
+                self->recorder_state->worker
+            );
             return ( action_replay_return_t const ) { 0 };
         default:
-            action_replay_log( "%s: failure locking worker %p, errno = %d\n", __func__, self->recorder_state->worker, result.status );
+            action_replay_log(
+                "%s: failure locking worker %p, errno = %d\n",
+                __func__,
+                self->recorder_state->worker,
+                result.status
+            );
             return result;
     }
-
-    if( NULL == ( self->recorder_state->zero_time = action_replay_copy( ( void * ) zero_time )))
+    self->recorder_state->zero_time =
+        action_replay_copy( ( void * ) zero_time );
+    if( NULL == self->recorder_state->zero_time )
     {
-        action_replay_log( "%s: failure allocating zero_time object\n", __func__ );
+        action_replay_log(
+            "%s: failure allocating zero_time object\n",
+            __func__
+        );
         result = ( action_replay_return_t const ) { errno };
         goto handle_zero_time_copy_error;
     }
-
-    if( 0 != ( result = self->recorder_state->worker->start( self->recorder_state->worker, self->recorder_state )).status )
+    result = self->recorder_state->worker->start_locked(
+        self->recorder_state->worker,
+        self->recorder_state
+    );
+    if( 0 != result.status )
     {
-        action_replay_log( "%s: failure starting worker %p\n", __func__, self->recorder_state->worker );
+        action_replay_log(
+            "%s: failure starting worker %p\n",
+            __func__,
+            self->recorder_state->worker
+        );
         action_replay_delete( ( void * ) ( self->recorder_state->zero_time ));
         self->recorder_state->zero_time = NULL;
     }
 
 handle_zero_time_copy_error:
-    self->recorder_state->worker->start_unlock( self->recorder_state->worker, ( 0 == result.status ));
+    self->recorder_state->worker->start_unlock(
+        self->recorder_state->worker,
+        ( 0 == result.status )
+    );
     return result;
 }
 
-static action_replay_return_t action_replay_recorder_t_stop_func_t_stop( action_replay_recorder_t * const self )
+static action_replay_return_t
+action_replay_recorder_t_stop_func_t_stop(
+    action_replay_recorder_t * const self
+)
 {
     if
     (
         ( NULL == self )
-        || ( ! action_replay_is_type( ( void * ) self, action_replay_recorder_t_class() ))
+        || ( ! action_replay_is_type(
+            ( void * ) self,
+            action_replay_recorder_t_class()
+        ))
     )
     {
         return ( action_replay_return_t const ) { EINVAL };
@@ -284,44 +420,83 @@ static action_replay_return_t action_replay_recorder_t_stop_func_t_stop( action_
 
     action_replay_return_t result;
 
-    switch(( result = self->recorder_state->worker->stop_lock( self->recorder_state->worker )).status )
+    result = self->recorder_state->worker->stop_lock(
+        self->recorder_state->worker
+    );
+    switch( result.status )
     {
         case 0:
             break;
         case EALREADY:
-            action_replay_log( "%s: worker %p already stopped\n", __func__, self->recorder_state->worker );
+            action_replay_log(
+                "%s: worker %p already stopped\n",
+                __func__,
+                self->recorder_state->worker
+            );
             return ( action_replay_return_t const ) { 0 };
         default:
-            action_replay_log( "%s: failure locking worker %p, errno = %d\n", __func__, self->recorder_state->worker, result.status );
+            action_replay_log(
+                "%s: failure locking worker %p, errno = %d\n",
+                __func__,
+                self->recorder_state->worker,
+                result.status
+            );
             return result;
     }
-
-    if( 1 > write( self->recorder_state->pipe_fd[ PIPE_WRITE ], " ", 1 ) /* force exit from poll */ )
+    /* force exit from poll */
+    if( 1 > write( self->recorder_state->pipe_fd[ PIPE_WRITE ], " ", 1 ))
     {
-        action_replay_log( "%s: failure forcing the worker %p thread to wake up\n", __func__, self->recorder_state->worker );
+        action_replay_log(
+            "%s: failure forcing the worker %p thread to wake up\n",
+            __func__,
+            self->recorder_state->worker
+        );
         result.status = errno;
         goto handle_write_error;
     }
-    
-    if( 0 == ( result = self->recorder_state->worker->stop( self->recorder_state->worker )).status )
+    result = self->recorder_state->worker->stop_locked(
+        self->recorder_state->worker
+    );
+    if( 0 == result.status )
     {
-        action_replay_log( "%s: success stopping worker %p\n", __func__, self->recorder_state->worker );
+        action_replay_log(
+            "%s: success stopping worker %p\n",
+            __func__,
+            self->recorder_state->worker
+        );
         action_replay_delete( ( void * ) ( self->recorder_state->zero_time ));
         self->recorder_state->zero_time = NULL;
     }
 
 handle_write_error:
-    self->recorder_state->worker->stop_unlock( self->recorder_state->worker, ( 0 == result.status ));
+    self->recorder_state->worker->stop_unlock(
+        self->recorder_state->worker,
+        ( 0 == result.status )
+    );
     return result;
 }
 
-static action_replay_error_t action_replay_recorder_t_worker_safe_input_read( int fd, void * const buf, size_t const size );
-static action_replay_error_t action_replay_recorder_t_worker_safe_output_write( struct input_event const event, action_replay_time_t * const restrict event_time, action_replay_time_t * const restrict zero_time, FILE * const restrict output );
+static action_replay_error_t
+action_replay_recorder_t_worker_safe_input_read(
+    int fd,
+    void * const buf,
+    size_t const size
+);
+static action_replay_error_t
+action_replay_recorder_t_worker_safe_output_write(
+    struct input_event const event,
+    action_replay_time_t * const restrict event_time,
+    action_replay_time_t * const restrict zero_time,
+    FILE * const restrict output
+);
 
 static void * action_replay_recorder_t_worker( void * thread_state )
 {
     action_replay_recorder_t_state_t * const recorder_state = thread_state;
-    action_replay_time_t * const event_time = action_replay_new( action_replay_time_t_class(), action_replay_time_t_args( action_replay_time_t_from_time_t( NULL )));
+    action_replay_time_t * const event_time = action_replay_new(
+        action_replay_time_t_class(),
+        action_replay_time_t_args( action_replay_time_t_from_time_t( NULL ))
+    );
 
     if( NULL == event_time )
     {
@@ -340,47 +515,106 @@ static void * action_replay_recorder_t_worker( void * thread_state )
         }
     };
 
-    action_replay_log( "%s: worker %p set up, waiting for events from %p\n", __func__, recorder_state->worker, recorder_state->input );
+    action_replay_log(
+        "%s: worker %p set up, waiting for events from %p\n",
+        __func__,
+        recorder_state->worker,
+        recorder_state->input
+    );
     while( poll( descriptors, POLL_DESCRIPTORS_COUNT, INFINITE_WAIT ))
     {
-        if( POLLIN == ( descriptors[ POLL_RUN_FLAG_DESCRIPTOR ].revents & POLLIN ))
+        if
+        (
+            POLLIN ==
+                ( descriptors[ POLL_RUN_FLAG_DESCRIPTOR ].revents & POLLIN )
+        )
         {
-            action_replay_log( "%s: worker %p ordered to stop polling for events from %p\n", __func__, recorder_state->worker, recorder_state->input );
+            action_replay_log(
+                "%s: worker %p ordered to stop polling for events from %p\n",
+                __func__,
+                recorder_state->worker,
+                recorder_state->input
+            );
             break;
         }
         if
         (
-            ( 0 != ( descriptors[ POLL_RUN_FLAG_DESCRIPTOR ].revents & ( POLLERR | POLLHUP | POLLNVAL )))
-            || ( 0 != ( descriptors[ POLL_INPUT_DESCRIPTOR ].revents & ( POLLERR | POLLHUP | POLLNVAL )))
+            ( 0 != (
+                descriptors[ POLL_RUN_FLAG_DESCRIPTOR ].revents
+                & ( POLLERR | POLLHUP | POLLNVAL )
+            ))
+            || ( 0 != (
+                descriptors[ POLL_INPUT_DESCRIPTOR ].revents
+                & ( POLLERR | POLLHUP | POLLNVAL )
+            ))
         )
         {
-            action_replay_log( "%s: failure polling for descriptor in worker %p\n", __func__, recorder_state->worker );
+            action_replay_log(
+                "%s: failure polling for descriptor in worker %p\n",
+                __func__,
+                recorder_state->worker
+            );
             break;
         }
-        if( POLLIN != ( descriptors[ POLL_INPUT_DESCRIPTOR ].revents & POLLIN ))
+        if
+        (
+            POLLIN != 
+                ( descriptors[ POLL_INPUT_DESCRIPTOR ].revents & POLLIN )
+        )
         {
             continue;
         }
 
         struct input_event event;
-        if( 0 != action_replay_recorder_t_worker_safe_input_read( descriptors[ POLL_INPUT_DESCRIPTOR ].fd, &event, sizeof( struct input_event )))
+        action_replay_error_t result;
+
+        result = action_replay_recorder_t_worker_safe_input_read(
+            descriptors[ POLL_INPUT_DESCRIPTOR ].fd,
+            &event,
+            sizeof( struct input_event )
+        );
+        if( 0 != result )
         {
-            action_replay_log( "%s: failure reading from %p\n", __func__, recorder_state->input );
+            action_replay_log(
+                "%s: failure reading from %p\n",
+                __func__,
+                recorder_state->input
+            );
             break;
         }
-
-        if( 0 != action_replay_recorder_t_worker_safe_output_write( event, event_time, recorder_state->zero_time, recorder_state->output ))
+        result = action_replay_recorder_t_worker_safe_output_write(
+            event,
+            event_time,
+            recorder_state->zero_time,
+            recorder_state->output
+        );
+        if( 0 != result )
         {
-            action_replay_log( "%s: failure writing entry to %p\n", __func__, recorder_state->output );
+            action_replay_log(
+                "%s: failure writing entry to %p\n",
+                __func__,
+                recorder_state->output
+            );
             break;
         }
     }
     action_replay_delete( ( void * ) event_time );
-    action_replay_log( "%s: worker %p stops polling from %p\n", __func__, recorder_state->worker, recorder_state->input );
+    action_replay_log(
+        "%s: worker %p stops polling from %p\n",
+        __func__,
+        recorder_state->worker,
+        recorder_state->input
+    );
+
     return NULL;
 }
 
-static action_replay_error_t action_replay_recorder_t_worker_safe_input_read( int fd, void * const buf, size_t const size )
+static action_replay_error_t
+action_replay_recorder_t_worker_safe_input_read(
+    int fd,
+    void * const buf,
+    size_t const size
+)
 {
     if( size > SSIZE_MAX )
     {
@@ -408,41 +642,86 @@ static action_replay_error_t action_replay_recorder_t_worker_safe_input_read( in
     return 0;
 }
 
-static action_replay_error_t action_replay_recorder_t_worker_safe_output_write( struct input_event const event, action_replay_time_t * const restrict event_time, action_replay_time_t * const restrict zero_time, FILE * const restrict output )
+static action_replay_error_t
+action_replay_recorder_t_worker_safe_output_write(
+    struct input_event const event,
+    action_replay_time_t * const restrict event_time,
+    action_replay_time_t * const restrict zero_time,
+    FILE * const restrict output
+)
 {
-    char const * const json = "\n{ \"time\": %" PRIu64 ", \"type\": %hu, \"code\": %hu, \"value\": %d }";
-
+    char const * const json =
+        "\n{ \"time\": %"
+        PRIu64
+        ", \"type\": %hu, \"code\": %hu, \"value\": %d }";
     action_replay_return_t result;
 
-    if( 0 != ( result = event_time->set( event_time, action_replay_time_t_from_timeval( event.time ))).status )
+    result = event_time->set(
+        event_time,
+        action_replay_time_t_from_timeval( event.time )
+    );
+    if( 0 != result.status )
     {
         return result.status;
     }
-    if( 0 != ( result = event_time->sub( event_time, action_replay_time_t_from_time_t( zero_time ))).status )
+    result = event_time->sub(
+        event_time,
+        action_replay_time_t_from_time_t( zero_time )
+    );
+    if( 0 != result.status )
     {
         return result.status;
     }
-    if( 0 != ( result = zero_time->add( zero_time, action_replay_time_t_from_time_t( event_time ))).status )
+    result = zero_time->add(
+        zero_time,
+        action_replay_time_t_from_time_t( event_time )
+    );
+    if( 0 != result.status )
     {
         return result.status;
     }
 
-    action_replay_time_t_return_t const conversion_result = event_time->nanoseconds( event_time );
+    action_replay_time_t_return_t const conversion_result =
+        event_time->nanoseconds( event_time );
+
     if( 0 != conversion_result.status )
     {
         return conversion_result.status;
     }
 
-    return ( 0 < fprintf( output, json, conversion_result.value, event.type, event.code, event.value )) ? 0 : EINVAL;
+    int const fprintf_result = fprintf(
+        output,
+        json,
+        conversion_result.value,
+        event.type,
+        event.code,
+        event.value
+    );
+
+    return ( 0 < fprintf_result ) ? 0 : EINVAL;
 }
 
-static inline action_replay_error_t action_replay_recorder_t_write_header( char const * const path_to_input_device, FILE * const output )
+static inline action_replay_error_t
+action_replay_recorder_t_write_header(
+    char const * const path_to_input_device,
+    FILE * const output
+)
 {
     char const * const header_string = "{ \"file\": \"%s\" }";
-    return ( 0 < fprintf( output, header_string, path_to_input_device )) ? 0 : EINVAL;
+    int const fprintf_result = fprintf(
+        output,
+        header_string,
+        path_to_input_device
+    );
+
+    return ( 0 < fprintf_result ) ? 0 : EINVAL;
 }
 
-static inline action_replay_error_t action_replay_recorder_t_header_nop( char const * const path_to_input_device, FILE * const output )
+static inline action_replay_error_t
+action_replay_recorder_t_header_nop(
+    char const * const path_to_input_device,
+    FILE * const output
+)
 {
     ( void ) path_to_input_device;
     ( void ) output;
@@ -451,7 +730,10 @@ static inline action_replay_error_t action_replay_recorder_t_header_nop( char co
 
 action_replay_class_t const * action_replay_recorder_t_class( void )
 {
-    static action_replay_class_t_func_t const inheritance[] = { action_replay_stateful_object_t_class, NULL };
+    static action_replay_class_t_func_t const inheritance[] ={
+        action_replay_stateful_object_t_class,
+        NULL
+    };
     static action_replay_class_t const result =
     {
         sizeof( action_replay_recorder_t ),
@@ -464,7 +746,8 @@ action_replay_class_t const * action_replay_recorder_t_class( void )
     return &result;
 }
 
-static action_replay_return_t action_replay_recorder_t_args_t_destructor( void * const state )
+static action_replay_return_t
+action_replay_recorder_t_args_t_destructor( void * const state )
 {
     action_replay_recorder_t_args_t * const recorder_args = state;
     free( recorder_args->path_to_input_device );
@@ -473,25 +756,36 @@ static action_replay_return_t action_replay_recorder_t_args_t_destructor( void *
     return ( action_replay_return_t const ) { 0 };
 }
 
-static action_replay_stateful_return_t action_replay_recorder_t_args_t_copier( void * const state )
+static action_replay_stateful_return_t
+action_replay_recorder_t_args_t_copier( void * const state )
 {
     action_replay_stateful_return_t result;
 
-    if( NULL == ( result.state = calloc( 1, sizeof( action_replay_recorder_t_args_t ))))
+    result.state = calloc( 1, sizeof( action_replay_recorder_t_args_t ));
+    if( NULL == result.state )
     {
         result.status = ENOMEM;
         return result;
     }
 
     action_replay_recorder_t_args_t * const recorder_args = result.state;
-    action_replay_recorder_t_args_t const * const original_recorder_args = state;
+    action_replay_recorder_t_args_t const * const original_recorder_args =
+        state;
 
-    if( NULL == ( recorder_args->path_to_input_device = strndup( original_recorder_args->path_to_input_device, INPUT_MAX_LEN )))
+    recorder_args->path_to_input_device = strndup(
+        original_recorder_args->path_to_input_device,
+        INPUT_MAX_LEN
+    );
+    if( NULL == recorder_args->path_to_input_device )
     {
         result.status = errno;
         goto handle_path_to_input_device_calloc_error;
     }
-    if( NULL != ( recorder_args->path_to_output = strndup( original_recorder_args->path_to_output, INPUT_MAX_LEN )))
+    recorder_args->path_to_output = strndup(
+        original_recorder_args->path_to_output,
+        INPUT_MAX_LEN
+    );
+    if( NULL != recorder_args->path_to_output )
     {
         result.status = 0;
         return result;
@@ -505,7 +799,11 @@ handle_path_to_input_device_calloc_error:
     return result;
 }
 
-action_replay_args_t action_replay_recorder_t_args( char const * const restrict path_to_input_device, char const * const restrict path_to_output )
+action_replay_args_t
+action_replay_recorder_t_args(
+    char const * const restrict path_to_input_device,
+    char const * const restrict path_to_output
+)
 {
     action_replay_args_t result = action_replay_args_t_default_args();
 
@@ -532,7 +830,8 @@ action_replay_args_t action_replay_recorder_t_args( char const * const restrict 
         goto handle_error;
     }
 
-    action_replay_stateful_return_t const copy = action_replay_recorder_t_args_t_copier( &args );
+    action_replay_stateful_return_t const copy =
+        action_replay_recorder_t_args_t_copier( &args );
 
     if( 0 == copy.status )
     {

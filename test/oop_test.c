@@ -5,13 +5,20 @@
 
 int main()
 {
-    action_replay_object_t * object = action_replay_new( action_replay_object_t_class(), action_replay_object_t_args() );
+    action_replay_object_t * object = action_replay_new(
+        action_replay_object_t_class(),
+        action_replay_object_t_args()
+    );
     assert( NULL != object );
 
     action_replay_object_t * copy_object = action_replay_copy( object );
     assert( NULL != copy_object );
 
-    printf( "object size: %zu, copy_object size: %zu\n", object->_class.size, copy_object->_class.size );
+    printf(
+        "object size: %zu, copy_object size: %zu\n",
+        object->_class->size,
+        copy_object->_class->size
+    );
 
     assert( 0 == action_replay_delete( object ));
     object = NULL;

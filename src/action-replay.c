@@ -11,17 +11,29 @@
 
 static inline void print_debug_options( void )
 {
-    puts( "\t[ --debug < stderr | stdout | /path/to/log > ]\n\t\toutputs log messages to given file\n\t\tif stdout or stderr are gives as argument, logs are redirected to\n\t\tstandard output or standard error output respectively" );
+    puts(
+        "\t[ --debug < stderr | stdout | /path/to/log > ]\n"
+        "\t\toutputs log messages to given file\n"
+        "\t\tif stdout or stderr are given, logs are redirected to\n"
+        "\t\tstandard output or standard error output respectively"
+    );
 }
 
 static inline void print_record_options( void )
 {
-    puts( "\trecord </dev/input/event1> [/dev/input/event2] ...\n\t\trecords user events from /dev/input/event* nodes\n\t\tor similar files outputting structures of Linux input system" );
+    puts(
+        "\trecord </dev/input/event1> [/dev/input/event2] ...\n"
+        "\t\trecords user events from /dev/input/event* nodes\n"
+        "\t\tor similar files outputting structures of Linux input system"
+    );
 }
 
 static inline void print_replay_options( void )
 {
-    puts( "\treplay </path/to/record/file1> [/path/to/record/file2] ...\n\t\tplays back previously recorded events from given files" );
+    puts(
+        "\treplay </path/to/record/file1> [/path/to/record/file2] ...\n"
+        "\t\tplays back previously recorded events from given files"
+    );
 }
 
 static inline void print_help_options( void )
@@ -68,34 +80,59 @@ static int record( int argc, char ** args )
         return EXIT_FAILURE;
     }
 
-    action_replay_recorder_t ** recorders = calloc( argc, sizeof( action_replay_recorder_t * ));
+    action_replay_recorder_t ** recorders =
+        calloc( argc, sizeof( action_replay_recorder_t * ));
+
     if( NULL == recorders )
     {
-        action_replay_log( "%s: failure allocating recorders list\n", __func__ );
+        action_replay_log(
+            "%s: failure allocating recorders list\n",
+            __func__
+        );
         return EXIT_FAILURE;
     }
-
     for( int i = 0; i < argc; ++i )
     {
-        if( NULL == ( recorders[ i ] = action_replay_new( action_replay_recorder_t_class(), action_replay_recorder_t_args( args[ i ], record_output_from_input( args[ i ] )))))
+        recorders[ i ] = action_replay_new(
+            action_replay_recorder_t_class(),
+            action_replay_recorder_t_args(
+                args[ i ],
+                record_output_from_input( args[ i ] )
+            )
+        );
+        if( NULL == recorders[ i ] )
         {
-            action_replay_log( "%s: failure allocating recorder #%d, bailing out\n", __func__, i );
+            action_replay_log(
+                "%s: failure allocating recorder #%d, bailing out\n",
+                __func__,
+                i
+            );
             goto handle_recorder_allocation_error;
         }
     }
 
-    action_replay_time_t * const zero_time = action_replay_new( action_replay_time_t_class(), action_replay_time_t_args( action_replay_time_t_now() ));
+    action_replay_time_t * const zero_time = action_replay_new(
+        action_replay_time_t_class(),
+        action_replay_time_t_args( action_replay_time_t_now() )
+    );
+
     if( NULL == zero_time )
     {
-        action_replay_log( "%s: failure allocating zero_time object\n", __func__ );
+        action_replay_log(
+            "%s: failure allocating zero_time object\n",
+            __func__
+        );
         goto handle_zero_time_allocation_error;
     }
-
     for( int i = 0; i < argc; ++i )
     {
         if( 0 != recorders[ i ]->start( recorders[ i ], zero_time ).status )
         {
-            action_replay_log( "%s: failure starting recorder #%d, bailing out\n", __func__, i );
+            action_replay_log(
+                "%s: failure starting recorder #%d, bailing out\n",
+                __func__,
+                i
+            );
             goto handle_recorder_start_error;
         }
     }
@@ -135,48 +172,66 @@ static int replay( int argc, char ** args )
         return EXIT_FAILURE;
     }
 
-    action_replay_player_t ** players = calloc( argc, sizeof( action_replay_player_t * ));
+    action_replay_player_t ** players =
+        calloc( argc, sizeof( action_replay_player_t * ));
+
     if( NULL == players )
     {
         action_replay_log( "%s: failure allocating players list\n", __func__ );
         return EXIT_FAILURE;
     }
-
     for( int i = 0; i < argc; ++i )
     {
-        if( NULL == ( players[ i ] = action_replay_new( action_replay_player_t_class(), action_replay_player_t_args( args[ i ] ))))
+        players[ i ] = action_replay_new(
+            action_replay_player_t_class(),
+            action_replay_player_t_args( args[ i ] )
+        );
+        if( NULL == players[ i ] )
         {
-            action_replay_log( "%s: failure allocating player #%d, bailing out\n", __func__, i );
+            action_replay_log(
+                "%s: failure allocating player #%d, bailing out\n",
+                __func__,
+                i
+            );
             goto handle_player_allocation_error;
         }
     }
 
-    action_replay_time_t * const zero_time = action_replay_new( action_replay_time_t_class(), action_replay_time_t_args( action_replay_time_t_now() ));
+    action_replay_time_t * const zero_time = action_replay_new(
+        action_replay_time_t_class(),
+        action_replay_time_t_args( action_replay_time_t_now() )
+    );
+
     if( NULL == zero_time )
     {
         action_replay_log( "%s: failure allocating zero_time object\n", __func__ );
         goto handle_zero_time_allocation_error;
     }
-
     for( int i = 0; i < argc; ++i )
     {
         if( 0 != players[ i ]->start( players[ i ], zero_time ).status )
         {
-            action_replay_log( "%s: failure starting player #%d, bailing out\n", __func__, i );
+            action_replay_log(
+                "%s: failure starting player #%d, bailing out\n",
+                __func__,
+                i
+            );
             goto handle_player_start_error;
         }
     }
-
     for( int i = 0; i < argc; ++i )
     {
         players[ i ]->join( players[ i ] );
     }
-
     for( int i = 0; i < argc; ++i )
     {
         if( 0 != action_replay_delete( ( void * ) players[ i ] ))
         {
-            action_replay_log( "%s: failure deleting player #%d\n", __func__, i );
+            action_replay_log(
+                "%s: failure deleting player #%d\n",
+                __func__,
+                i
+            );
         }
     }
     free( players );
@@ -299,3 +354,4 @@ int main( int argc, char ** args )
     /* skip args[ 0 ] - program name, args[ 1 ] - option */
     return func( argc - 2, args + 2 );
 }
+

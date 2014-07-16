@@ -4,23 +4,27 @@
 #include <errno.h>
 #include <stddef.h>
 
-action_replay_return_t action_replay_args_t_default_destructor( void * const state )
+action_replay_return_t
+action_replay_args_t_default_destructor( void * const state )
 {
     ( void ) state;
     return ( action_replay_return_t const ) { 0 };
 }
 
-action_replay_stateful_return_t action_replay_args_t_default_copier( void * const state )
+action_replay_stateful_return_t
+action_replay_args_t_default_copier( void * const state )
 {
     return ( action_replay_stateful_return_t const ) { 0, state };
 }
  
-action_replay_return_t action_replay_args_t_delete( action_replay_args_t args )
+action_replay_return_t
+action_replay_args_t_delete( action_replay_args_t args )
 {
     return args.destructor( args.state );
 }
 
-action_replay_args_t_return_t action_replay_args_t_copy( action_replay_args_t const args )
+action_replay_args_t_return_t
+action_replay_args_t_copy( action_replay_args_t const args )
 {
     action_replay_args_t_return_t result;
 
@@ -28,7 +32,11 @@ action_replay_args_t_return_t action_replay_args_t_copy( action_replay_args_t co
 
     if( 0 == ( result.status = copy.status ))
     {
-        result.args = ( action_replay_args_t const ) { copy.state, args.destructor, args.copier };
+        result.args = ( action_replay_args_t const ) {
+            copy.state,
+            args.destructor,
+            args.copier
+        };
     }
 
     return result;

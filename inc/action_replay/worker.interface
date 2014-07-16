@@ -4,9 +4,9 @@
 
 action_replay_worker_t_state_t * worker_state;
 action_replay_worker_t_func_t start_lock;
-action_replay_worker_t_start_func_t start;
+action_replay_worker_t_start_func_t start_locked;
 action_replay_worker_t_unlock_func_t start_unlock;
 action_replay_worker_t_func_t stop_lock;
-action_replay_worker_t_func_t stop;
+action_replay_worker_t_func_t stop_locked;
 action_replay_worker_t_unlock_func_t stop_unlock;
 

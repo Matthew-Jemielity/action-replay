@@ -3,24 +3,34 @@
 #include <action_replay/object.h>
 #include <stddef.h>
 
-static inline action_replay_return_t action_replay_object_t_internal( void * const object )
+static inline action_replay_return_t
+action_replay_object_t_internal( void * const object )
 {
     ( void ) object;
     return ( action_replay_return_t const ) { 0 };
 }
 
-static action_replay_return_t action_replay_object_t_constructor( void * const object, action_replay_args_t const args )
+static action_replay_return_t
+action_replay_object_t_constructor(
+    void * const object,
+    action_replay_args_t const args
+)
 {
     ( void ) args;
     return action_replay_object_t_internal( object );
 }
 
-static action_replay_return_t action_replay_object_t_destructor( void * const object )
+static action_replay_return_t
+action_replay_object_t_destructor( void * const object )
 {
     return action_replay_object_t_internal( object );
 }
 
-static action_replay_return_t action_replay_object_t_copier( void * const restrict copy, void const * const restrict original )
+static action_replay_return_t
+action_replay_object_t_copier(
+    void * const restrict copy,
+    void const * const restrict original
+)
 {
     ( void ) original;
     return action_replay_object_t_internal( copy );

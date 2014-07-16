@@ -9,7 +9,11 @@
 #include <stddef.h>
 #include <stdlib.h>
 
-void * action_replay_new( action_replay_class_t const * const _class, action_replay_args_t const args )
+void *
+action_replay_new(
+    action_replay_class_t const * const _class,
+    action_replay_args_t const args
+)
 {
     if( NULL == _class )
     {
@@ -36,7 +40,8 @@ void * action_replay_new( action_replay_class_t const * const _class, action_rep
     return NULL;
 }
 
-action_replay_error_t action_replay_delete( action_replay_object_t * const object )
+action_replay_error_t
+action_replay_delete( action_replay_object_t * const object )
 {
     if( NULL == object )
     {
@@ -79,14 +84,19 @@ void * action_replay_copy( action_replay_object_t const * const object )
     return NULL;
 }
 
-static bool action_replay_is_type_internal( action_replay_class_t const * const object_class, action_replay_class_t const * const type_class )
+static bool
+action_replay_is_type_internal(
+    action_replay_class_t const * const object_class,
+    action_replay_class_t const * const type_class
+)
 {
     if( object_class == type_class )
     {
         return true;
     }
 
-    action_replay_class_t_func_t const * const parent_list = object_class->inheritance;
+    action_replay_class_t_func_t const * const parent_list =
+        object_class->inheritance;
     for( unsigned int index = 0; parent_list[ index ] != NULL; ++index )
     {
         action_replay_class_t_func_t const parent = parent_list[ index ];
@@ -99,7 +109,10 @@ static bool action_replay_is_type_internal( action_replay_class_t const * const 
     return false;
 }
 
-bool action_replay_is_type( action_replay_object_t const * const restrict object, action_replay_class_t const * const restrict _class )
+bool action_replay_is_type(
+    action_replay_object_t const * const restrict object,
+    action_replay_class_t const * const restrict _class
+)
 {
     if
     (

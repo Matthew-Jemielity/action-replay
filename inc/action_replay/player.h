@@ -9,8 +9,15 @@
 
 typedef struct action_replay_player_t_state_t action_replay_player_t_state_t;
 typedef struct action_replay_player_t action_replay_player_t;
-typedef action_replay_return_t ( * action_replay_player_t_start_func_t )( action_replay_player_t * const self, action_replay_time_t const * const zero_time );
-typedef action_replay_return_t ( * action_replay_player_t_stop_func_t )( action_replay_player_t * const self );
+typedef action_replay_return_t
+( * action_replay_player_t_start_func_t )(
+    action_replay_player_t * const self,
+    action_replay_time_t const * const zero_time
+);
+typedef action_replay_return_t
+( * action_replay_player_t_stop_func_t )(
+    action_replay_player_t * const self
+);
 
 struct action_replay_player_t
 {
@@ -20,7 +27,8 @@ struct action_replay_player_t
 };
 
 action_replay_class_t const * action_replay_player_t_class( void );
-action_replay_args_t action_replay_player_t_args( char const * const path_to_input );
+action_replay_args_t
+action_replay_player_t_args( char const * const path_to_input );
 
 #endif /* ACTION_REPLAY_PLAYER_H__ */
 

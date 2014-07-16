@@ -1,6 +1,6 @@
-#include "action_replay/log.h"
-#include "action_replay/object_oriented_programming.h"
-#include "action_replay/workqueue.h"
+#include <action_replay/log.h>
+#include <action_replay/object_oriented_programming.h>
+#include <action_replay/workqueue.h>
 #include <assert.h>
 #include <stdio.h>
 #include <unistd.h>
@@ -43,7 +43,10 @@ static void print_five( void * const state )
 int main()
 {
     assert( 0 == action_replay_log_init( stderr ).status );
-    action_replay_workqueue_t * wq = action_replay_new( action_replay_workqueue_t_class(), action_replay_workqueue_t_args() );
+    action_replay_workqueue_t * wq = action_replay_new(
+        action_replay_workqueue_t_class(),
+        action_replay_workqueue_t_args()
+    );
     assert( NULL != wq );
     assert( 0 == wq->start( wq ).status );
     puts( "start enqueuing" );
@@ -57,7 +60,10 @@ int main()
     puts( "finished sleeping, deleting workqueue (this will call stop())" );
     assert( 0 == action_replay_delete( ( void * ) wq ));
     puts( "test with empty workqueue" );
-    wq = action_replay_new( action_replay_workqueue_t_class(), action_replay_workqueue_t_args() );
+    wq = action_replay_new(
+        action_replay_workqueue_t_class(),
+        action_replay_workqueue_t_args()
+    );
     assert( 0 == wq->start( wq ).status );
     assert( 0 == action_replay_delete( ( void * ) wq ));
     puts( "test passed" );

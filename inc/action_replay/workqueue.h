@@ -6,11 +6,21 @@
 # include <action_replay/object.h>
 # include <action_replay/return.h>
 
-typedef struct action_replay_workqueue_t_state_t action_replay_workqueue_t_state_t;
+typedef struct action_replay_workqueue_t_state_t
+    action_replay_workqueue_t_state_t;
 typedef struct action_replay_workqueue_t action_replay_workqueue_t;
-typedef action_replay_return_t ( * action_replay_workqueue_t_func_t )( action_replay_workqueue_t * const self );
-typedef void ( * action_replay_workqueue_t_work_func_t )( void * const state );
-typedef action_replay_return_t ( * action_replay_workqueue_t_put_func_t )( action_replay_workqueue_t * const self, action_replay_workqueue_t_work_func_t const payload, void * const state );
+typedef action_replay_return_t
+( * action_replay_workqueue_t_func_t )(
+    action_replay_workqueue_t * const self
+);
+typedef void
+( * action_replay_workqueue_t_work_func_t )( void * const state );
+typedef action_replay_return_t
+( * action_replay_workqueue_t_put_func_t )(
+    action_replay_workqueue_t * const self,
+    action_replay_workqueue_t_work_func_t const payload,
+    void * const state
+);
 
 struct action_replay_workqueue_t
 {
