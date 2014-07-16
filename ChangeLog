@@ -1,0 +1,145 @@
+commit 5493947b10a26d2e4701d2ef2b8f0a1650322140
+Author: Mateusz Jemielity <matthew.jemielity@gmail.com>
+Date:   Wed Jul 16 06:12:07 2014 -0700
+
+    stylistic changes (lines no longer than 79 char, etc.); moved some locks out of player, user will be required to synchronize operations on player object
+
+commit 05a836d50e7674c4ae7869561c858e385adf1910
+Author: Mateusz Jemielity <matthew.jemielity@gmail.com>
+Date:   Mon Jul 14 02:31:47 2014 -0700
+
+    brought back time checking in player, modified main worker loop and workqueue payload so replaying is reasonably fast
+
+commit 8ae4f51a7f784c5fa25faaacf3fdedda5a2b1870
+Author: Mateusz Jemielity <matthew.jemielity@gmail.com>
+Date:   Sun Jul 13 13:06:36 2014 -0700
+
+    bugfixes; simplified player to make it faster, but now it won't check for deviation from supposed wake up time
+
+commit 4f84b2250ac839be73a1bc69681319c7be7e10ed
+Author: Mateusz Jemielity <matthew.jemielity@gmail.com>
+Date:   Sun Jul 13 07:57:14 2014 -0700
+
+    bugfixes; WIP action_replay main program
+
+commit 1899882bb9ca2fded198131239a0884e80108091
+Author: Mateusz Jemielity <matthew.jemielity@gmail.com>
+Date:   Fri Jul 11 14:11:08 2014 -0700
+
+    added ability to comment lines in recorded files, line has to start with #
+
+commit 0723a8df4de9ca27d06934fa799c78876578ff35
+Author: Mateusz Jemielity <matthew.jemielity@gmail.com>
+Date:   Fri Jul 11 08:31:06 2014 -0700
+
+    added logging functionality
+
+commit 7681dbf6c032dad61df89065d0806f597a0639d9
+Author: Mateusz Jemielity <matthew.jemielity@gmail.com>
+Date:   Wed Jul 9 14:03:49 2014 -0700
+
+    first working version of player; TODO: main action-replay program, Makefile, documentation
+
+commit f6dbb620d8833f8a9afdbd2c33e9bf081ed91f5b
+Author: Mateusz Jemielity <matthew.jemielity@gmail.com>
+Date:   Wed Jul 9 11:20:52 2014 -0700
+
+    _new() and _copy() now set errno; fixed missing mutex unlock in workqueue; changed output json to have numbers instead of strings; player now uses workqueue, player almost done
+
+commit 9f200d2ca41fb434e5d2de7c7510c6bf5f0b4d5c
+Author: Mateusz Jemielity <matthew.jemielity@gmail.com>
+Date:   Tue Jul 8 15:44:15 2014 -0700
+
+    added action_replay_workqueue_t, which will be used in player; WIP action_replay_player_t, need to finish worker
+
+commit c0d88711dc1aecbdc6f29919804044570877f581
+Author: Mateusz Jemielity <matthew.jemielity@gmail.com>
+Date:   Sat Jul 5 03:13:41 2014 -0700
+
+    moved thread management to separate class action_replay_worker_t; preparations for action_replay_player_t
+
+commit f35635530dac2922bc3e5e14e73238480e7807fe
+Author: Mateusz Jemielity <matthew.jemielity@gmail.com>
+Date:   Fri Jul 4 09:13:37 2014 -0700
+
+    argument name change in function declaration for conformance
+
+commit 7e67a727b89f27a9dfc4ce6b3c5c863ebed10abe
+Author: Mateusz Jemielity <matthew.jemielity@gmail.com>
+Date:   Fri Jul 4 05:39:15 2014 -0700
+
+    working action_replay_recorder_t; action_replay_time_t now properly copies changed state
+
+commit 0c3d06dde52489d4d10dea7e301a1045ea7cae86
+Author: Mateusz Jemielity <matthew.jemielity@gmail.com>
+Date:   Mon Jun 30 12:34:03 2014 -0700
+
+    added action_replay_is_type which can check type of any class inheriting from action_replay_object_t
+
+commit efa1c85587108b14e84299e403481309d6f2c44f
+Author: Mateusz Jemielity <matthew.jemielity@gmail.com>
+Date:   Mon Jun 30 03:15:18 2014 -0700
+
+    *_class() functions now return pointer (to static struct) instead of struct; this will provide unique identifier for each class and make it easier to implement type-checking feature
+
+commit b4ac742bec403759baea2bbc5f684ae4aa0518d3
+Author: Mateusz Jemielity <matthew.jemielity@gmail.com>
+Date:   Mon Jun 30 01:38:24 2014 -0700
+
+    counteract diamond problem on multiple inheritance: now instead of implicit inheritance (stateful_object->object), all classes must explicitly state all their inheritances all the way down. unfortunate, but necessary if we want multiple inheritance to be possible
+
+commit 3dd4e76cd8b574828fc35c8ebe1be59732a3391a
+Author: Mateusz Jemielity <matthew.jemielity@gmail.com>
+Date:   Sun Jun 29 10:54:34 2014 -0700
+
+    added time type; added deletion of args created for use in action_replay_new to fix memory leak
+
+commit c1e8d3822f88f676b3f30dbb906a1271e41423bf
+Author: Mateusz Jemielity <matthew.jemielity@gmail.com>
+Date:   Wed Jun 25 13:05:14 2014 -0700
+
+    added comment explaining using posix, added asserts in recorder_test.c
+
+commit 02b41ad95579965d1f89bdb8a4b54088b75d10d3
+Author: Mateusz Jemielity <matthew.jemielity@gmail.com>
+Date:   Wed Jun 25 12:53:28 2014 -0700
+
+    finished recorder class with dummy worker; worker will be responsible for actual parsing of events and writing them to output
+
+commit 9358520362ab0b214a156b070ef4a9d2f1898ee0
+Author: Mateusz Jemielity <matthew.jemielity@gmail.com>
+Date:   Sat Jun 21 03:20:04 2014 -0700
+
+    added stateful object, args infrastructure, super ops
+
+commit 879f84188a34422ae559bb8627bad70fcdae79de
+Author: Mateusz Jemielity <matthew.jemielity@gmail.com>
+Date:   Mon Jun 16 15:06:35 2014 -0700
+
+    WIP: right files this time; added proper action_replay_args_t and convenience functions; changed object to use new args; changed return type of action_replay_destruct - it better communicates errors and that its a destructor
+
+commit 0d8fe863a048f5de3df6f81aff40b4cb5fe08ad1
+Author: Mateusz Jemielity <matthew.jemielity@gmail.com>
+Date:   Mon Jun 16 15:00:26 2014 -0700
+
+    Revert "WIP: small work on action_replay_args_t; changed return type of action_replay_destruct to better show possible errors and to signify it's a destructor"
+    
+    This reverts commit 1db31845777e80d6a99e0f7b0e4ac875c7e476fa.
+
+commit 1db31845777e80d6a99e0f7b0e4ac875c7e476fa
+Author: Mateusz Jemielity <matthew.jemielity@gmail.com>
+Date:   Mon Jun 16 14:20:12 2014 -0700
+
+    WIP: small work on action_replay_args_t; changed return type of action_replay_destruct to better show possible errors and to signify it's a destructor
+
+commit 61bb4c814fe556f46edcd8abb33f786173c29ec3
+Author: Mateusz Jemielity <matthew.jemielity@gmail.com>
+Date:   Sun Jun 15 07:13:51 2014 -0700
+
+    First signs of OOP appear; action_replay_object_t is the base class from which others will inherit (the class does nothing)
+
+commit c2af70459efba9d541200ca711f09e4814fda3a3
+Author: Mateusz Jemielity <matthew.jemielity@gmail.com>
+Date:   Sun Jun 15 04:50:20 2014 -0700
+
+    Initial commit, non-compilable WIP
