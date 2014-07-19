@@ -75,10 +75,15 @@ static inline bool is_io( char const * const arg )
     return ( 0 == strncmp( arg, "-io\0", 4 ));
 }
 
+static inline bool is_stop( void )
+{
+    return ( 0 == OPA_load_int( &run_flag ));
+}
+
 typedef void ( * record_stop_func_t )( unsigned long int const arg );
 
 static int record_internal(
-    int argc,
+    unsigned int argc,
     char ** args,
     record_stop_func_t const stopper,
     unsigned long int const stopper_arg
@@ -110,12 +115,12 @@ static int record_internal(
     }
     for
     (
-        int i = 0, rec = 0;
+        unsigned int i = 0, rec = 0;
         ( i < argc ) && ( rec < rec_count );
         i += 3, ++rec
     )
     {
-        if( 0 == OPA_load_int( &run_flag ))
+        if( is_stop() )
         {
             action_replay_log(
                 "%s: ordered to stop through SIGINT at %d\n",
@@ -166,9 +171,9 @@ static int record_internal(
         );
         goto handle_zero_time_allocation_error;
     }
-    for( int i = 0; i < rec_count; ++i )
+    for( unsigned int i = 0; i < rec_count; ++i )
     {
-        if( 0 == OPA_load_int( &run_flag ))
+        if( is_stop() )
         {
             action_replay_log(
                 "%s: ordered to stop through SIGINT at %d\n",
@@ -191,7 +196,7 @@ static int record_internal(
     /* will handle SIGINT */
     stopper( stopper_arg );
 
-    for( int i = 0; i < rec_count; ++i )
+    for( unsigned int i = 0; i < rec_count; ++i )
     {
         action_replay_delete( ( void * ) recorders[ i ] );
     }
@@ -205,7 +210,7 @@ handle_zero_time_allocation_error:
 handle_recorder_allocation_error:
 handle_recorder_option_parsing_error:
 handle_sigint_during_recorder_creation:
-    for( int i = 0; i < rec_count; ++i )
+    for( unsigned int i = 0; i < rec_count; ++i )
     {
         action_replay_delete( ( void * ) recorders[ i ] );
     }
@@ -213,21 +218,22 @@ handle_sigint_during_recorder_creation:
     return EXIT_FAILURE;
 }
 
-void default_record_stop( unsigned long int const arg )
+static inline void default_record_stop( unsigned long int const arg )
 {
     ( void ) arg;
     puts( "Press Ctrl + C to stop recording" );
     while( true )
     {
         sleep( 1 );
-        if( 0 == OPA_load_int( &run_flag ))
+        if( is_stop() )
         {
             break;
         }
     }
+    puts( "Cleaning up" );
 }
 
-void timed_record_stop( unsigned long int const arg )
+static inline void timed_record_stop( unsigned long int const arg )
 {
     unsigned long int i = 0;
 
@@ -235,19 +241,20 @@ void timed_record_stop( unsigned long int const arg )
     {
         ++i;
         sleep( 1 );
-        if( 0 == OPA_load_int( &run_flag ))
+        if( is_stop() )
         {
             break;
         }
     }
 }
 
-void action_replay_cleanup( int signum )
+static void action_replay_cleanup( int signum )
 {
+    ( void ) signum;
     OPA_store_int( &run_flag, 0 );
 }
 
-static int record( int argc, char ** args )
+static int record( unsigned int argc, char ** args )
 {
     if( 2 > argc )
     {
@@ -256,12 +263,14 @@ static int record( int argc, char ** args )
         return EXIT_FAILURE;
     }
 
-    unsigned long int stopper_arg;
     struct sigaction cleanup;
 
     memset( &cleanup, 0, sizeof( struct sigaction ));
     cleanup.sa_handler = action_replay_cleanup;
     sigaction( SIGINT, &cleanup, NULL );
+
+    record_stop_func_t stopper = default_record_stop;
+    unsigned long int stopper_arg = 0;
 
     if
     (
@@ -269,23 +278,20 @@ static int record( int argc, char ** args )
         && ( 0 != ( stopper_arg = strtoul( args[ 1 ], NULL, 10 )))
     )
     {
-        return record_internal(
-            argc - 2,
-            args + 2,
-            timed_record_stop,
-            stopper_arg
-        );
+        argc -= 2;
+        args += 2;
+        stopper = timed_record_stop;
     }
 
     return record_internal(
         argc,
         args,
-        default_record_stop,
-        0
+        stopper,
+        stopper_arg
     );
 }
 
-static int replay( int argc, char ** args )
+static int replay( unsigned int argc, char ** args )
 {
     if
     (
@@ -306,7 +312,7 @@ static int replay( int argc, char ** args )
         action_replay_log( "%s: failure allocating players list\n", __func__ );
         return EXIT_FAILURE;
     }
-    for( int i = 0; i < argc; ++i )
+    for( unsigned int i = 0; i < argc; ++i )
     {
         players[ i ] = action_replay_new(
             action_replay_player_t_class(),
@@ -333,7 +339,7 @@ static int replay( int argc, char ** args )
         action_replay_log( "%s: failure allocating zero_time object\n", __func__ );
         goto handle_zero_time_allocation_error;
     }
-    for( int i = 0; i < argc; ++i )
+    for( unsigned int i = 0; i < argc; ++i )
     {
         if( 0 != players[ i ]->start( players[ i ], zero_time ).status )
         {
@@ -345,11 +351,11 @@ static int replay( int argc, char ** args )
             goto handle_player_start_error;
         }
     }
-    for( int i = 0; i < argc; ++i )
+    for( unsigned int i = 0; i < argc; ++i )
     {
         players[ i ]->join( players[ i ] );
     }
-    for( int i = 0; i < argc; ++i )
+    for( unsigned int i = 0; i < argc; ++i )
     {
         if( 0 != action_replay_delete( ( void * ) players[ i ] ))
         {
@@ -368,7 +374,7 @@ handle_player_start_error:
     action_replay_delete( ( void * ) zero_time );
 handle_zero_time_allocation_error:
 handle_player_allocation_error:
-    for( int i = 0; i < argc; ++i )
+    for( unsigned int i = 0; i < argc; ++i )
     {
         action_replay_delete( ( void * ) players[ i ] );
     }
@@ -401,16 +407,16 @@ static inline void fclose_debug_option( FILE * arg )
     }
 }
 
-typedef int ( * option_func_t )( int argc, char ** args );
-
-static inline int default_return( int argc, char ** args )
+static inline int default_return( unsigned int argc, char ** args )
 {
     ( void ) argc;
     ( void ) args;
     return return_full_help();
 }
 
-static int debug( int argc, char ** args )
+typedef int ( * option_func_t )( unsigned int argc, char ** args );
+
+static int debug( unsigned int argc, char ** args )
 {
     if( 2 > argc )
     {
