@@ -85,12 +85,24 @@ action_replay_recorder_t_state_t_new(
     if( NULL == recorder_state->input )
     {
         result.status = errno;
+        action_replay_log(
+            "%s: failure opening %s, errno = %d\n",
+            __func__,
+            recorder_args->path_to_input_device,
+            result.status
+        );
         goto handle_path_to_input_device_open_error;
     }
     recorder_state->output = fopen( recorder_args->path_to_output, "w" );
     if( NULL == recorder_state->output )
     {
         result.status = errno;
+        action_replay_log(
+            "%s: failure opening %s, errno = %d\n",
+            __func__,
+            recorder_args->path_to_input_device,
+            result.status
+        );
         goto handle_path_to_output_open_error;
     }
     if( -1 == pipe( recorder_state->pipe_fd ))

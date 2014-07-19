@@ -85,6 +85,12 @@ action_replay_player_t_state_t_new( action_replay_args_t const args )
     if( NULL == player_state->input )
     {
         result.status = errno;
+        action_replay_log(
+            "%s: failure to open %s, errno = %d\n",
+            __func__,
+            player_args->path_to_input,
+            result.status
+            );
         goto handle_path_to_input_open_error;
     }
     player_state->worker = action_replay_new(
