@@ -1,3 +1,15 @@
+commit c8007e6171ab6d01d154c00daf15531a4e1448e8
+Author: Mateusz Jemielity <matthew.jemielity@gmail.com>
+Date:   Sat Jul 19 04:44:47 2014 -0700
+
+    added timeout option to recording, added stopping recording with ctrl+c, recording now takes input file and output file
+
+commit a85fc3239586756de2d8a79ea0ea1ab50901b402
+Author: Mateusz Jemielity <matthew.jemielity@gmail.com>
+Date:   Wed Jul 16 12:59:13 2014 -0700
+
+    autotools setup
+
 commit 5493947b10a26d2e4701d2ef2b8f0a1650322140
 Author: Mateusz Jemielity <matthew.jemielity@gmail.com>
 Date:   Wed Jul 16 06:12:07 2014 -0700
