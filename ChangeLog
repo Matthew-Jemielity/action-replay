@@ -1,3 +1,15 @@
+commit f37da4d8c15fb7944c01cc41794b005a845f3264
+Author: Mateusz Jemielity <matthew.jemielity@gmail.com>
+Date:   Sat Jul 19 05:15:43 2014 -0700
+
+    code cleanup in action-replay.c
+
+commit ea202293cbd64c013ee0a7571cb9a33aca499661
+Author: Mateusz Jemielity <matthew.jemielity@gmail.com>
+Date:   Sat Jul 19 04:49:17 2014 -0700
+
+    updated ChangeLog; TODO: doxygen documentation
+
 commit c8007e6171ab6d01d154c00daf15531a4e1448e8
 Author: Mateusz Jemielity <matthew.jemielity@gmail.com>
 Date:   Sat Jul 19 04:44:47 2014 -0700
