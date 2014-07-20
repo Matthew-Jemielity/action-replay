@@ -5,8 +5,8 @@
 # include <action_replay/class.h>
 # include <action_replay/return.h>
 # include <action_replay/stateful_object.h>
+# include <action_replay/stdbool.h>
 # include <action_replay/time.h>
-# include <stdbool.h>
 
 typedef struct action_replay_worker_t_state_t action_replay_worker_t_state_t;
 typedef struct action_replay_worker_t action_replay_worker_t;

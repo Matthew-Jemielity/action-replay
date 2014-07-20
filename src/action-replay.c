@@ -2,10 +2,10 @@
 #include "action_replay/object_oriented_programming.h"
 #include "action_replay/player.h"
 #include "action_replay/recorder.h"
+#include "action_replay/stdbool.h"
 #include "action_replay/time.h"
 #include <opa_primitives.h>
 #include <signal.h>
-#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

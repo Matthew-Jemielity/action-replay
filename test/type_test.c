@@ -1,8 +1,8 @@
+#include <action_replay/assert.h>
 #include <action_replay/object.h>
 #include <action_replay/object_oriented_programming.h>
 #include <action_replay/stateful_object.h>
 #include <action_replay/time.h>
-#include <assert.h>
 
 int main()
 {

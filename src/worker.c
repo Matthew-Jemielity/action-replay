@@ -6,11 +6,11 @@
 #include "action_replay/return.h"
 #include "action_replay/stateful_object.h"
 #include "action_replay/stateful_return.h"
+#include "action_replay/stdbool.h"
 #include "action_replay/worker.h"
 #include <errno.h>
 #include <opa_primitives.h>
 #include <pthread.h>
-#include <stdbool.h>
 #include <stdlib.h>
 
 typedef enum

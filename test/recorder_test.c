@@ -1,8 +1,8 @@
+#include <action_replay/assert.h>
 #include <action_replay/log.h>
 #include <action_replay/object_oriented_programming.h>
 #include <action_replay/recorder.h>
 #include <action_replay/time.h>
-#include <assert.h>
 #include <stdio.h>
 #include <unistd.h>
 

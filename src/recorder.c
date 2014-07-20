@@ -3,6 +3,8 @@
 
 #include "action_replay/args.h"
 #include "action_replay/error.h"
+#include "action_replay/inttypes.h"
+#include "action_replay/limits.h"
 #include "action_replay/log.h"
 #include "action_replay/object_oriented_programming.h"
 #include "action_replay/object_oriented_programming_super.h"
@@ -10,19 +12,17 @@
 #include "action_replay/return.h"
 #include "action_replay/stateful_object.h"
 #include "action_replay/stateful_return.h"
+#include "action_replay/stddef.h"
+#include "action_replay/sys/types.h"
 #include "action_replay/time.h"
 #include "action_replay/worker.h"
 #include <errno.h>
 #include <fcntl.h>
-#include <inttypes.h>
 #include <linux/input.h>
-#include <limits.h>
 #include <poll.h>
-#include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/time.h>
 #include <sys/types.h>
 #include <unistd.h>
 

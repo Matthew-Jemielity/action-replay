@@ -6,8 +6,8 @@
 #include "action_replay/return.h"
 #include "action_replay/stateful_object.h"
 #include "action_replay/stateful_return.h"
+#include "action_replay/stddef.h"
 #include <errno.h>
-#include <stddef.h>
 #include <stdlib.h>
 
 struct action_replay_stateful_object_t_state_t

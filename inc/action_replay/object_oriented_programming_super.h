@@ -3,7 +3,7 @@
 
 # include <action_replay/class.h>
 # include <action_replay/return.h>
-# include <stdbool.h>
+# include <action_replay/stdbool.h>
 
 typedef enum
 {

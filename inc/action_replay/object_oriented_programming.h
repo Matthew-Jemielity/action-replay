@@ -5,7 +5,7 @@
 # include <action_replay/class.h>
 # include <action_replay/error.h>
 # include <action_replay/object.h>
-# include <stdbool.h>
+# include <action_replay/stdbool.h>
 
 void *
 action_replay_new(

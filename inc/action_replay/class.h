@@ -3,7 +3,7 @@
 
 # include <action_replay/args.h>
 # include <action_replay/return.h>
-# include <sys/types.h>
+# include <action_replay/stddef.h>
 
 typedef action_replay_return_t
 ( * action_replay_constructor_t )(

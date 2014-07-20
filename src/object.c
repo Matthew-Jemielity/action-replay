@@ -1,7 +1,7 @@
-#include <action_replay/args.h>
-#include <action_replay/class.h>
-#include <action_replay/object.h>
-#include <stddef.h>
+#include "action_replay/args.h"
+#include "action_replay/class.h"
+#include "action_replay/object.h"
+#include "action_replay/stddef.h"
 
 static inline action_replay_return_t
 action_replay_object_t_internal( void * const object )

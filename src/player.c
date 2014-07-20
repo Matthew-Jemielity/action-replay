@@ -1,6 +1,5 @@
 #define JSMN_STRICT /* jsmn parses only valid JSON */
 #define _POSIX_C_SOURCE 200809L /* strntol, fileno */
-#define __STDC_FORMAT_MACROS
 
 #include "action_replay/args.h"
 #include "action_replay/error.h"
@@ -11,13 +10,14 @@
 #include "action_replay/return.h"
 #include "action_replay/stateful_object.h"
 #include "action_replay/stateful_return.h"
+#include "action_replay/stddef.h"
 #include "action_replay/time.h"
 #include "action_replay/worker.h"
 #include "action_replay/workqueue.h"
 #include <errno.h>
-#include <inttypes.h>
 #include <jsmn.h>
 #include <linux/input.h>
+#include <linux/types.h>
 #include <opa_primitives.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -725,17 +725,17 @@ action_replay_player_t_parse_line(
     parse_state->sleep = action_replay_time_t_from_nanoseconds(
         strtoull( buffer + tokens[ INPUT_JSON_TIME_TOKEN ].start, NULL, 10 )
     );
-    parse_state->event.type = ( uint16_t ) strtoul(
+    parse_state->event.type = ( __u16 ) strtoul(
         buffer + tokens[ INPUT_JSON_TYPE_TOKEN ].start,
         NULL,
         10
     );
-    parse_state->event.code = ( uint16_t ) strtoul(
+    parse_state->event.code = ( __u16 ) strtoul(
         buffer + tokens[ INPUT_JSON_CODE_TOKEN ].start,
         NULL,
         10
     );
-    parse_state->event.value = strtol(
+    parse_state->event.value = ( __s32 ) strtol(
         buffer + tokens[ INPUT_JSON_VALUE_TOKEN ].start,
         NULL,
         10

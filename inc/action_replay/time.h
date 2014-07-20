@@ -5,7 +5,7 @@
 # include <action_replay/class.h>
 # include <action_replay/return.h>
 # include <action_replay/stateful_object.h>
-# include <stdint.h>
+# include <action_replay/stdint.h>
 # include <sys/time.h>
 # include <time.h>
 

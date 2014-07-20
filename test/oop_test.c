@@ -1,6 +1,6 @@
+#include <action_replay/assert.h>
 #include <action_replay/object.h>
 #include <action_replay/object_oriented_programming.h>
-#include <assert.h>
 #include <stdio.h>
 
 int main()
