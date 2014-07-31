@@ -1,3 +1,21 @@
+commit 9980a9429149d6f48e16c2fcece8ebe7f0e0fcfb
+Author: Mateusz Jemielity <matthew.jemielity@gmail.com>
+Date:   Thu Jul 31 04:36:43 2014 -0700
+
+    Added action_replay_stoppable_t - common class implementing start() and stop() for more specialized classed; numerous bugfixes: missing free if new() fails, synchronization in player_t, added consts, code prettyfication
+
+commit b2ae07fea4c951b6b2266bb3743285bb53765e93
+Author: Mateusz Jemielity <matthew.jemielity@gmail.com>
+Date:   Sun Jul 20 12:44:26 2014 -0700
+
+    code is now actually uisng some of the flags passed by configure script; changed configure script so that it fails when necessary files or methods cannot be found
+
+commit 909fc20fcdbd3c6053433e4752849863f319fea4
+Author: Mateusz Jemielity <matthew.jemielity@gmail.com>
+Date:   Sat Jul 19 05:18:48 2014 -0700
+
+    action-replay is now at v1.0, TODO: documentation
+
 commit f37da4d8c15fb7944c01cc41794b005a845f3264
 Author: Mateusz Jemielity <matthew.jemielity@gmail.com>
 Date:   Sat Jul 19 05:15:43 2014 -0700
