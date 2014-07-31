@@ -3,6 +3,7 @@
 #include "action_replay/args.h"
 #include "action_replay/class.h"
 #include "action_replay/log.h"
+#include "action_replay/object.h"
 #include "action_replay/object_oriented_programming.h"
 #include "action_replay/object_oriented_programming_super.h"
 #include "action_replay/return.h"
@@ -167,7 +168,7 @@ action_replay_log_t_func_t_log(
     (
         ( NULL == self )
         || ( ! action_replay_is_type(
-            ( void * ) self,
+            ( void * const ) self,
             action_replay_log_t_class()
         ))
     )

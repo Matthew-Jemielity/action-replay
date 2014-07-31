@@ -10,6 +10,7 @@ MAIN_SOURCES = \
     src/player.c \
     src/recorder.c \
     src/stateful_object.c \
+    src/stoppable.c \
     src/time.c \
     src/worker.c \
     src/workqueue.c

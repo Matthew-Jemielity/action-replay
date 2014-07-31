@@ -236,7 +236,7 @@ action_replay_time_t_func_t_set(
     (
         ( NULL == self )
         || ( ! action_replay_is_type(
-            ( void * ) self,
+            ( void * const ) self,
             action_replay_time_t_class()
         ))
     )
@@ -259,7 +259,7 @@ action_replay_time_t_func_t_add(
     (
         ( NULL == self )
         || ( ! action_replay_is_type(
-            ( void * ) self,
+            ( void * const ) self,
             action_replay_time_t_class()
         ))
     )
@@ -293,7 +293,7 @@ action_replay_time_t_func_t_sub(
     (
         ( NULL == self )
         || ( ! action_replay_is_type(
-            ( void * ) self,
+            ( void * const ) self,
             action_replay_time_t_class()
         ))
     )
@@ -342,7 +342,7 @@ action_replay_time_t_conversion_func_t_internal(
     (
         ( NULL == time )
         || ( ! action_replay_is_type(
-            ( void * ) time,
+            ( void * const ) time,
             action_replay_time_t_class()
         ))
     )
@@ -516,7 +516,7 @@ action_replay_time_t_from_time_t( action_replay_time_t const * const value )
     (
         ( NULL == value )
         || ( ! action_replay_is_type(
-            ( void * ) value,
+            ( void * const ) value,
             action_replay_time_t_class()
         ))
     )

@@ -1,0 +1,8 @@
+#ifndef ACTION_REPLAY_STOPPABLE_H__
+# error "Add #include <action_replay/stoppable.h>"
+#endif /* ACTION_REPLAY_STOPPABLE_H__ */
+
+action_replay_stoppable_t_state_t * stoppable_state;
+action_replay_stoppable_t_start_func_t start;
+action_replay_stoppable_t_stop_func_t stop;
+

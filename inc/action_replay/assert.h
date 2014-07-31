@@ -13,19 +13,18 @@
 #    define ACTION_REPLAY_ASSERT_STRINGIFY( arg ) #arg
 #    define assert( condition ) \
     ({ \
-        ( condition ) \
-        ? \
-        ( void ) 0 \
-        : \
-        fprintf( \
-            stderr, \
-            "%s:%u: %s: Assertion '%s' failed.\n", \
-            __FILE__, \
-            __LINE__, \
-            __func__, \
-            ACTION_REPLAY_ASSERT_STRINGIFY( condition ) \
-        ), \
-        abort(); \
+        if( ! ( condition )) \
+        { \
+            fprintf( \
+                stderr, \
+                "%s:%u: %s: Assertion '%s' failed.\n", \
+                __FILE__, \
+                __LINE__, \
+                __func__, \
+                ACTION_REPLAY_ASSERT_STRINGIFY( condition ) \
+            ); \
+            abort(); \
+        } \
      })
 #   endif /* NDEBUG */
 #  endif /* assert */

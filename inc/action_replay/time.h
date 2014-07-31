@@ -3,6 +3,7 @@
 
 # include <action_replay/args.h>
 # include <action_replay/class.h>
+# include <action_replay/object.h>
 # include <action_replay/return.h>
 # include <action_replay/stateful_object.h>
 # include <action_replay/stdint.h>

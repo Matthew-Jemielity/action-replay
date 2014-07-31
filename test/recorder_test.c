@@ -2,6 +2,7 @@
 #include <action_replay/log.h>
 #include <action_replay/object_oriented_programming.h>
 #include <action_replay/recorder.h>
+#include <action_replay/stddef.h>
 #include <action_replay/time.h>
 #include <stdio.h>
 #include <unistd.h>
@@ -27,10 +28,13 @@ int main(int argc, char ** args)
         action_replay_time_t_args( action_replay_time_t_now() )
     );
     assert( NULL != zero_time );
-    assert( 0 == ( recorder->start(recorder, zero_time)).status );
+    assert( 0 == ( recorder->start(
+        ( void * ) recorder,
+        action_replay_recorder_t_start_state( zero_time )
+    )).status );
     assert( 0 == action_replay_delete( ( void * ) zero_time ));
     sleep( 3 );
-    assert( 0 == ( recorder->stop(recorder)).status );
+    assert( 0 == ( recorder->stop( ( void * ) recorder )).status );
     assert( 0 == action_replay_delete( ( void * ) recorder ));
     assert( 0 == action_replay_log_close().status );
     return 0;

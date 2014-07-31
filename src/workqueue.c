@@ -14,21 +14,6 @@
 #include <pthread.h>
 #include <stdlib.h>
 
-typedef enum
-{
-    WORKQUEUE_CONTINUE,
-    WORKQUEUE_JOIN,
-    WORKQUEUE_STOP
-}
-action_replay_workqueue_t_run_flag_t;
-
-static action_replay_workqueue_t_run_flag_t
-    workqueue_continue = WORKQUEUE_CONTINUE;
-static action_replay_workqueue_t_run_flag_t
-    workqueue_join = WORKQUEUE_JOIN;
-static action_replay_workqueue_t_run_flag_t
-    workqueue_stop = WORKQUEUE_STOP;
-
 typedef struct
 {
     OPA_Queue_element_hdr_t header;
@@ -45,6 +30,21 @@ struct action_replay_workqueue_t_state_t
     pthread_cond_t condition;
     pthread_mutex_t mutex;
 };
+
+typedef enum
+{
+    WORKQUEUE_CONTINUE,
+    WORKQUEUE_JOIN,
+    WORKQUEUE_STOP
+}
+action_replay_workqueue_t_run_flag_t;
+
+static action_replay_workqueue_t_run_flag_t
+    workqueue_continue = WORKQUEUE_CONTINUE;
+static action_replay_workqueue_t_run_flag_t
+    workqueue_join = WORKQUEUE_JOIN;
+static action_replay_workqueue_t_run_flag_t
+    workqueue_stop = WORKQUEUE_STOP;
 
 static void * action_replay_workqueue_t_process_queue( void * state );
 
@@ -224,7 +224,12 @@ action_replay_workqueue_t_destructor( void * const object )
     {
         return result;
     }
-    if( 0 != ( result = workqueue->stop( workqueue )).status )
+    result = workqueue->stop( workqueue );
+    if
+    (
+        ( 0 != result.status )
+        && ( EALREADY != result.status )
+    )
     {
         return result;
     }
@@ -269,7 +274,7 @@ action_replay_workqueue_t_put_func_t_put(
         ( NULL == self )
         || ( NULL == payload )
         || ( ! action_replay_is_type(
-            ( void * ) self,
+            ( void * const ) self,
             action_replay_workqueue_t_class()
         ))
     )
@@ -295,7 +300,7 @@ action_replay_workqueue_t_put_func_t_put(
     );
 
     return ( action_replay_return_t const ) {
-        pthread_cond_signal( &( self->workqueue_state->condition ))
+        pthread_cond_broadcast( &( self->workqueue_state->condition ))
     };
 }
 
@@ -308,7 +313,7 @@ action_replay_workqueue_t_func_t_start(
     (
         ( NULL == self )
         || ( ! action_replay_is_type(
-            ( void * ) self,
+            ( void * const ) self,
             action_replay_workqueue_t_class()
         ))
     )
@@ -352,7 +357,7 @@ action_replay_workqueue_t_func_t_finish(
     (
         ( NULL == self )
         || ( ! action_replay_is_type(
-            ( void * ) self,
+            ( void * const ) self,
             action_replay_workqueue_t_class()
         ))
     )
@@ -370,14 +375,14 @@ action_replay_workqueue_t_func_t_finish(
         case 0:
             break;
         case EALREADY:
-            return ( action_replay_return_t const ) { 0 };
+            return result;
         default:
             return result;
     }
     OPA_store_ptr( &( self->workqueue_state->run_flag ), run_flag );
     /* in case thread is waiting on empty queue */
     result = ( action_replay_return_t const ) {
-        pthread_cond_signal( &( self->workqueue_state->condition ))
+        pthread_cond_broadcast( &( self->workqueue_state->condition ))
     };
     if( 0 == result.status )
     {

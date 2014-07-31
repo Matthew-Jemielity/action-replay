@@ -3,6 +3,7 @@
 #include "action_replay/player.h"
 #include "action_replay/recorder.h"
 #include "action_replay/stdbool.h"
+#include "action_replay/stddef.h"
 #include "action_replay/time.h"
 #include <opa_primitives.h>
 #include <signal.h>
@@ -182,7 +183,10 @@ static int record_internal(
             );
             goto handle_sigint_during_recorder_starting;
         }
-        if( 0 != recorders[ i ]->start( recorders[ i ], zero_time ).status )
+        if( 0 != recorders[ i ]->start(
+            ( void * ) ( recorders[ i ] ),
+            action_replay_recorder_t_start_state( zero_time )
+        ).status )
         {
             action_replay_log(
                 "%s: failure starting recorder #%d, bailing out\n",
@@ -341,7 +345,10 @@ static int replay( unsigned int argc, char ** args )
     }
     for( unsigned int i = 0; i < argc; ++i )
     {
-        if( 0 != players[ i ]->start( players[ i ], zero_time ).status )
+        if( 0 != players[ i ]->start(
+            ( void * ) ( players[ i ] ),
+            action_replay_player_t_start_state( zero_time )
+        ).status )
         {
             action_replay_log(
                 "%s: failure starting player #%d, bailing out\n",

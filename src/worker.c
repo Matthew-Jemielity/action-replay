@@ -13,6 +13,19 @@
 #include <pthread.h>
 #include <stdlib.h>
 
+typedef struct
+{
+    action_replay_worker_t_thread_func_t thread_function;
+}
+action_replay_worker_t_args_t;
+
+struct action_replay_worker_t_state_t
+{
+    action_replay_worker_t_thread_func_t thread_function;
+    OPA_ptr_t status;
+    pthread_t worker;
+};
+
 typedef enum
 {
     WORKER_STARTING,
@@ -30,19 +43,6 @@ static action_replay_worker_t_worker_status_t
     worker_stopping = WORKER_STOPPING;
 static action_replay_worker_t_worker_status_t
     worker_stopped = WORKER_STOPPED;
-
-typedef struct
-{
-    action_replay_worker_t_thread_func_t thread_function;
-}
-action_replay_worker_t_args_t;
-
-struct action_replay_worker_t_state_t
-{
-    action_replay_worker_t_thread_func_t thread_function;
-    OPA_ptr_t status;
-    pthread_t worker;
-};
 
 static action_replay_stateful_return_t
 action_replay_worker_t_state_t_new( action_replay_args_t const args )
@@ -262,7 +262,7 @@ action_replay_worker_t_func_t_start_lock(
     (
         ( NULL == self )
         || ( ! action_replay_is_type(
-            ( void * ) self,
+            ( void * const ) self,
             action_replay_worker_t_class()
         ))
     )
@@ -312,7 +312,7 @@ action_replay_worker_t_start_func_t_start_locked(
     (
         ( NULL == self )
         || ( ! action_replay_is_type(
-            ( void * ) self,
+            ( void * const ) self,
             action_replay_worker_t_class()
         ))
     )
@@ -340,7 +340,7 @@ action_replay_worker_t_unlock_func_t_start_unlock(
     (
         ( NULL == self )
         || ( ! action_replay_is_type(
-            ( void * ) self,
+            ( void * const ) self,
             action_replay_worker_t_class()
         ))
     )
@@ -375,7 +375,7 @@ action_replay_worker_t_func_t_stop_lock(
     (
         ( NULL == self )
         || ( ! action_replay_is_type(
-            ( void * ) self,
+            ( void * const ) self,
             action_replay_worker_t_class()
         ))
     )
@@ -423,7 +423,7 @@ action_replay_worker_t_func_t_stop_locked(
     (
         ( NULL == self )
         || ( ! action_replay_is_type(
-            ( void * ) self,
+            ( void * const ) self,
             action_replay_worker_t_class()
         ))
     )
@@ -446,7 +446,7 @@ action_replay_worker_t_unlock_func_t_stop_unlock(
     (
         ( NULL == self )
         || ( ! action_replay_is_type(
-            ( void * ) self,
+            ( void * const ) self,
             action_replay_worker_t_class()
         ))
     )

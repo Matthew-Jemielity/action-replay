@@ -28,11 +28,15 @@ action_replay_new(
     }
 
     action_replay_object_t * const _new = object;
+
     _new->_class = _class;
 
-    if( 0 == ( errno = _class->constructor( object, args ).status ))
+    action_replay_error_t error;
+
+    error = _class->constructor( object, args ).status;
+    action_replay_args_t_delete( args );
+    if( 0 == ( errno = error ))
     {
-        action_replay_args_t_delete( args );
         return object;
     }
 

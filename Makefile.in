@@ -95,8 +95,9 @@ am__installdirs = "$(DESTDIR)$(bindir)"
 PROGRAMS = $(bin_PROGRAMS)
 am__objects_1 = args.$(OBJEXT) log.$(OBJEXT) object.$(OBJEXT) \
 	object_oriented_programming.$(OBJEXT) player.$(OBJEXT) \
-	recorder.$(OBJEXT) stateful_object.$(OBJEXT) time.$(OBJEXT) \
-	worker.$(OBJEXT) workqueue.$(OBJEXT)
+	recorder.$(OBJEXT) stateful_object.$(OBJEXT) \
+	stoppable.$(OBJEXT) time.$(OBJEXT) worker.$(OBJEXT) \
+	workqueue.$(OBJEXT)
 am_action_replay_OBJECTS = $(am__objects_1) action-replay.$(OBJEXT)
 action_replay_OBJECTS = $(am_action_replay_OBJECTS)
 action_replay_LDADD = $(LDADD)
@@ -275,6 +276,7 @@ MAIN_SOURCES = \
     src/player.c \
     src/recorder.c \
     src/stateful_object.c \
+    src/stoppable.c \
     src/time.c \
     src/worker.c \
     src/workqueue.c
@@ -382,6 +384,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/player.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/recorder.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/stateful_object.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/stoppable.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/time.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/worker.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/workqueue.Po@am__quote@
@@ -497,6 +500,20 @@ stateful_object.obj: src/stateful_object.c
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='src/stateful_object.c' object='stateful_object.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o stateful_object.obj `if test -f 'src/stateful_object.c'; then $(CYGPATH_W) 'src/stateful_object.c'; else $(CYGPATH_W) '$(srcdir)/src/stateful_object.c'; fi`
+
+stoppable.o: src/stoppable.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT stoppable.o -MD -MP -MF $(DEPDIR)/stoppable.Tpo -c -o stoppable.o `test -f 'src/stoppable.c' || echo '$(srcdir)/'`src/stoppable.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/stoppable.Tpo $(DEPDIR)/stoppable.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='src/stoppable.c' object='stoppable.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o stoppable.o `test -f 'src/stoppable.c' || echo '$(srcdir)/'`src/stoppable.c
+
+stoppable.obj: src/stoppable.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT stoppable.obj -MD -MP -MF $(DEPDIR)/stoppable.Tpo -c -o stoppable.obj `if test -f 'src/stoppable.c'; then $(CYGPATH_W) 'src/stoppable.c'; else $(CYGPATH_W) '$(srcdir)/src/stoppable.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/stoppable.Tpo $(DEPDIR)/stoppable.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='src/stoppable.c' object='stoppable.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o stoppable.obj `if test -f 'src/stoppable.c'; then $(CYGPATH_W) 'src/stoppable.c'; else $(CYGPATH_W) '$(srcdir)/src/stoppable.c'; fi`
 
 time.o: src/time.c
 @am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT time.o -MD -MP -MF $(DEPDIR)/time.Tpo -c -o time.o `test -f 'src/time.c' || echo '$(srcdir)/'`src/time.c

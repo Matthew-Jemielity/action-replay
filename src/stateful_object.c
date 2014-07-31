@@ -175,7 +175,7 @@ action_replay_stateful_object_t_args_func_t_args(
     (
         ( NULL == self )
         || ( ! action_replay_is_type(
-            ( void * ) self,
+            ( void * const ) self,
             action_replay_stateful_object_t_class()
         ))
     )

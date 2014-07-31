@@ -10,12 +10,11 @@
 #include "action_replay/object_oriented_programming_super.h"
 #include "action_replay/recorder.h"
 #include "action_replay/return.h"
-#include "action_replay/stateful_object.h"
 #include "action_replay/stateful_return.h"
 #include "action_replay/stddef.h"
+#include "action_replay/stoppable.h"
 #include "action_replay/sys/types.h"
 #include "action_replay/time.h"
-#include "action_replay/worker.h"
 #include <errno.h>
 #include <fcntl.h>
 #include <linux/input.h>
@@ -40,32 +39,49 @@
 
 typedef struct
 {
+    action_replay_time_t * zero_time;
+}
+action_replay_recorder_t_start_state_t;
+
+typedef struct
+{
     char * path_to_input_device;
     char * path_to_output;
 }
 action_replay_recorder_t_args_t;
 
+typedef struct
+{
+    action_replay_time_t * event_time;
+    action_replay_time_t * zero_time;
+    action_replay_recorder_t_state_t * recorder_state;
+    struct input_event event;
+    struct pollfd descriptors[ POLL_DESCRIPTORS_COUNT ];
+}
+action_replay_recorder_t_worker_state_t;
+
 struct action_replay_recorder_t_state_t
 {
-    action_replay_time_t * zero_time;
-    action_replay_worker_t * worker;
+    action_replay_args_t start_state;
+    action_replay_recorder_t_worker_state_t * worker_state;
+    action_replay_stoppable_t_start_func_t stoppable_start;
+    action_replay_stoppable_t_stop_func_t stoppable_stop;
     FILE * input;
     FILE * output;
     int pipe_fd[ PIPE_DESCRIPTORS_COUNT ];
 };
 
-typedef action_replay_error_t
-( * action_replay_recorder_t_header_func_t )(
-    char const * const restrict path_to_input_device,
-    FILE * const restrict output
+static action_replay_error_t
+action_replay_recorder_t_write_header(
+    char const * const path_to_input_device,
+    FILE * const output
 );
-
-static void * action_replay_recorder_t_worker( void * thread_state );
 
 static action_replay_stateful_return_t
 action_replay_recorder_t_state_t_new(
     action_replay_args_t const args,
-    action_replay_recorder_t_header_func_t const header_operation
+    action_replay_stoppable_t_start_func_t const start,
+    action_replay_stoppable_t_stop_func_t const stop
 )
 {
     action_replay_stateful_return_t result;
@@ -110,16 +126,7 @@ action_replay_recorder_t_state_t_new(
         result.status = errno;
         goto handle_pipe_error;
     }
-    recorder_state->worker = action_replay_new(
-        action_replay_worker_t_class(),
-        action_replay_worker_t_args( action_replay_recorder_t_worker )
-    );
-    if( NULL == recorder_state->worker )
-    {
-        result.status = errno;
-        goto handle_worker_new_error;
-    }
-    result.status = header_operation(
+    result.status = action_replay_recorder_t_write_header(
         recorder_args->path_to_input_device,
         recorder_state->output
     );
@@ -131,12 +138,13 @@ action_replay_recorder_t_state_t_new(
             recorder_args->path_to_input_device,
             recorder_state->input
         );
-        recorder_state->zero_time = NULL;
+        recorder_state->start_state = action_replay_args_t_default_args();
+        recorder_state->stoppable_start = start;
+        recorder_state->stoppable_stop = stop;
+        recorder_state->worker_state = NULL;
         return result;
     }
 
-    action_replay_delete( ( void * ) recorder_state->worker );
-handle_worker_new_error:
     close( recorder_state->pipe_fd[ PIPE_READ ] );
     close( recorder_state->pipe_fd[ PIPE_WRITE ] );
 handle_pipe_error:
@@ -154,15 +162,13 @@ action_replay_recorder_t_state_t_delete(
     action_replay_recorder_t_state_t * const recorder_state
 )
 {
-    action_replay_error_t const error = {
-        action_replay_delete( ( void * ) recorder_state->worker )
-    };
+    action_replay_return_t const result =
+        action_replay_args_t_delete( recorder_state->start_state );
 
-    if( 0 != error )
+    if( 0 != result.status )
     {
-        return ( action_replay_return_t const ) { error };
+        return result;
     }
-    recorder_state->worker = NULL;
     if
     (
         ( -1 == close( recorder_state->pipe_fd[ PIPE_READ ] ))
@@ -173,10 +179,10 @@ action_replay_recorder_t_state_t_delete(
     {
         return ( action_replay_return_t const ) { errno };
     }
-    /* zero_time known to be NULL */
+    /* start_state and worker_state known to be cleaned up */
     free( recorder_state );
 
-    return ( action_replay_return_t const ) { 0 };
+    return result;
 }
 
 action_replay_class_t const * action_replay_recorder_t_class( void );
@@ -188,9 +194,8 @@ action_replay_recorder_t_internal(
     action_replay_recorder_t * const restrict recorder,
     action_replay_recorder_t const * const restrict original_recorder,
     action_replay_args_t const args,
-    action_replay_recorder_t_header_func_t const header_operation,
-    action_replay_recorder_t_start_func_t const start,
-    action_replay_recorder_t_stop_func_t const stop
+    action_replay_stoppable_t_start_func_t const start,
+    action_replay_stoppable_t_stop_func_t const stop
 )
 {
     if( NULL == args.state )
@@ -207,7 +212,11 @@ action_replay_recorder_t_internal(
 
     action_replay_stateful_return_t result;
     
-    result = action_replay_recorder_t_state_t_new( args, header_operation );
+    result = action_replay_recorder_t_state_t_new(
+        args,
+        recorder->start, /* set in super */
+        recorder->stop /* set in super */
+    );
     if( 0 != result.status )
     {
         SUPER(
@@ -226,19 +235,14 @@ action_replay_recorder_t_internal(
     return ( action_replay_return_t const ) { result.status };
 }
 
-static action_replay_error_t
-action_replay_recorder_t_write_header(
-    char const * const path_to_input_device,
-    FILE * const output
-);
 static action_replay_return_t
 action_replay_recorder_t_start_func_t_start(
-    action_replay_recorder_t * const restrict self,
-    action_replay_time_t const * const restrict zero_time
+    action_replay_stoppable_t * const self,
+    action_replay_args_t const start_state
 );
 static action_replay_return_t
 action_replay_recorder_t_stop_func_t_stop(
-    action_replay_recorder_t * const self
+    action_replay_stoppable_t * const self
 );
 
 static inline action_replay_return_t
@@ -252,7 +256,6 @@ action_replay_recorder_t_constructor(
         object,
         NULL,
         args,
-        action_replay_recorder_t_write_header,
         action_replay_recorder_t_start_func_t_start,
         action_replay_recorder_t_stop_func_t_stop
     );
@@ -268,10 +271,18 @@ action_replay_recorder_t_destructor( void * const object )
     {
         return result;
     }
-    if( 0 != ( result = recorder->stop( recorder )).status )
+    result = recorder->stop( ( void * const ) recorder );
+    if
+    (
+        ( 0 != result.status )
+        && ( EALREADY != result.status )
+    )
     {
         return result;
     }
+    /* super calls stoppable_t destructor, which expects stoppable funcs */
+    recorder->start = recorder->recorder_state->stoppable_start;
+    recorder->stop = recorder->recorder_state->stoppable_stop;
     SUPER(
         DESTRUCT,
         action_replay_recorder_t_class,
@@ -290,132 +301,107 @@ action_replay_recorder_t_destructor( void * const object )
     return result;
 }
 
-static action_replay_error_t
-action_replay_recorder_t_header_nop(
-    char const * const path_to_input_device,
-    FILE * const output
-);
-
 static action_replay_return_t
 action_replay_recorder_t_copier(
     void * const restrict copy,
     void const * const restrict original
 )
 {
-    action_replay_recorder_t const * const original_recorder = original;
-    action_replay_args_t_return_t args =
-        original_recorder->args( ( void * ) original_recorder );
-
-    if( 0 != args.status )
-    {
-        return ( action_replay_return_t const ) { args.status };
-    }
-
-    action_replay_return_t const result = action_replay_recorder_t_internal(
-        COPY,
-        copy,
-        original,
-        args.args,
-        action_replay_recorder_t_header_nop,
-        original_recorder->start,
-        original_recorder->stop
-    );
-
-    /* 
-     * error here will result in unhandled memory leak
-     * is it better to leave it (non-critical) or handle it
-     * by adding complexity and deleting the copy?
-     */
-    action_replay_args_t_delete( args.args );
-
-    return result;
+    ( void ) copy;
+    ( void ) original;
+    return ( action_replay_return_t const ) { ENOSYS };
 }
+
+static action_replay_error_t
+action_replay_recorder_t_worker( void * state );
 
 static action_replay_return_t
 action_replay_recorder_t_start_func_t_start(
-    action_replay_recorder_t * const restrict self,
-    action_replay_time_t const * const restrict zero_time
+    action_replay_stoppable_t * const self,
+    action_replay_args_t const start_state
 )
 {
     if
     (
         ( NULL == self )
-        || ( NULL == zero_time )
+        || ( NULL == start_state.state )
         || ( ! action_replay_is_type(
             ( void * ) self,
             action_replay_recorder_t_class()
-        ))
-        || ( ! action_replay_is_type(
-            ( void * ) zero_time,
-            action_replay_time_t_class()
         ))
     )
     {
         return ( action_replay_return_t const ) { EINVAL };
     }
 
+    action_replay_recorder_t_worker_state_t * const worker_state =
+        calloc( 1, sizeof( action_replay_recorder_t_worker_state_t ));
+
+    if( NULL == worker_state )
+    {
+        return ( action_replay_return_t const ) { ENOMEM };
+    }
+
+    action_replay_recorder_t_start_state_t * const recorder_start_state =
+        start_state.state;
+
+    worker_state->event_time = action_replay_new(
+        action_replay_time_t_class(),
+        action_replay_time_t_args( action_replay_time_t_from_time_t( NULL ))
+    );
+
     action_replay_return_t result;
 
-    result = self->recorder_state->worker->start_lock(
-        self->recorder_state->worker
-    );
-    switch( result.status )
+    if( NULL == worker_state->event_time )
     {
-        case 0:
-            break;
-        case EALREADY:
-            action_replay_log(
-                "%s: worker %p already started\n",
-                __func__,
-                self->recorder_state->worker
-            );
-            return ( action_replay_return_t const ) { 0 };
-        default:
-            action_replay_log(
-                "%s: failure locking worker %p, errno = %d\n",
-                __func__,
-                self->recorder_state->worker,
-                result.status
-            );
-            return result;
-    }
-    self->recorder_state->zero_time =
-        action_replay_copy( ( void * ) zero_time );
-    if( NULL == self->recorder_state->zero_time )
-    {
-        action_replay_log(
-            "%s: failure allocating zero_time object\n",
-            __func__
-        );
-        result = ( action_replay_return_t const ) { errno };
-        goto handle_zero_time_copy_error;
-    }
-    result = self->recorder_state->worker->start_locked(
-        self->recorder_state->worker,
-        self->recorder_state
-    );
-    if( 0 != result.status )
-    {
-        action_replay_log(
-            "%s: failure starting worker %p\n",
-            __func__,
-            self->recorder_state->worker
-        );
-        action_replay_delete( ( void * ) ( self->recorder_state->zero_time ));
-        self->recorder_state->zero_time = NULL;
+        result.status = errno;
+        goto handle_event_time_creation_error;
     }
 
-handle_zero_time_copy_error:
-    self->recorder_state->worker->start_unlock(
-        self->recorder_state->worker,
-        ( 0 == result.status )
+    action_replay_recorder_t * const recorder = ( void * const ) self;
+
+    worker_state->descriptors[ POLL_INPUT_DESCRIPTOR ] = ( struct pollfd )
+    {
+        .fd = fileno( recorder->recorder_state->input ),
+        .events = POLLIN
+    };
+    worker_state->descriptors[ POLL_RUN_FLAG_DESCRIPTOR ] = ( struct pollfd )
+    {
+        .fd = recorder->recorder_state->pipe_fd[ PIPE_READ ],
+        .events = POLLIN
+    };
+    /* zero_time was copied internally */
+    worker_state->zero_time = recorder_start_state->zero_time;
+    worker_state->recorder_state = recorder->recorder_state;
+
+    result = recorder->recorder_state->stoppable_start(
+        self,
+        action_replay_stoppable_t_start_state(
+            action_replay_recorder_t_worker,
+            worker_state
+        )
     );
+
+    /* at most one thread can succeed */
+    if( 0 == result.status )
+    {
+        /* XXX: possible leak */
+        action_replay_args_t_delete( recorder->recorder_state->start_state );
+        recorder->recorder_state->start_state = start_state;
+        recorder->recorder_state->worker_state = worker_state;
+        return result;
+    }
+
+    action_replay_delete( ( void * ) ( worker_state->event_time ));
+handle_event_time_creation_error:
+    free( worker_state );
+    action_replay_args_t_delete( start_state );
     return result;
 }
 
 static action_replay_return_t
 action_replay_recorder_t_stop_func_t_stop(
-    action_replay_recorder_t * const self
+    action_replay_stoppable_t * const self
 )
 {
     if
@@ -430,61 +416,37 @@ action_replay_recorder_t_stop_func_t_stop(
         return ( action_replay_return_t const ) { EINVAL };
     }
 
+    action_replay_recorder_t * const recorder = ( void * const ) self;
     action_replay_return_t result;
 
-    result = self->recorder_state->worker->stop_lock(
-        self->recorder_state->worker
-    );
-    switch( result.status )
-    {
-        case 0:
-            break;
-        case EALREADY:
-            action_replay_log(
-                "%s: worker %p already stopped\n",
-                __func__,
-                self->recorder_state->worker
-            );
-            return ( action_replay_return_t const ) { 0 };
-        default:
-            action_replay_log(
-                "%s: failure locking worker %p, errno = %d\n",
-                __func__,
-                self->recorder_state->worker,
-                result.status
-            );
-            return result;
-    }
     /* force exit from poll */
-    if( 1 > write( self->recorder_state->pipe_fd[ PIPE_WRITE ], " ", 1 ))
+    if( 1 > write( recorder->recorder_state->pipe_fd[ PIPE_WRITE ], " ", 1 ))
     {
         action_replay_log(
             "%s: failure forcing the worker %p thread to wake up\n",
             __func__,
-            self->recorder_state->worker
+            recorder->recorder_state->worker_state
         );
         result.status = errno;
-        goto handle_write_error;
+        return result;
     }
-    result = self->recorder_state->worker->stop_locked(
-        self->recorder_state->worker
-    );
-    if( 0 == result.status )
+    result = recorder->recorder_state->stoppable_stop( self );
+    /* at most one thread can succeed */
+    if( 0 != result.status )
     {
-        action_replay_log(
-            "%s: success stopping worker %p\n",
-            __func__,
-            self->recorder_state->worker
-        );
-        action_replay_delete( ( void * ) ( self->recorder_state->zero_time ));
-        self->recorder_state->zero_time = NULL;
+        return result;
     }
-
-handle_write_error:
-    self->recorder_state->worker->stop_unlock(
-        self->recorder_state->worker,
-        ( 0 == result.status )
+    /* XXX: possible leak */
+    action_replay_args_t_delete( recorder->recorder_state->start_state );
+    recorder->recorder_state->start_state =
+        action_replay_args_t_default_args();
+    /* XXX: possible leak */
+    action_replay_delete(
+        ( void * ) recorder->recorder_state->worker_state->event_time
     );
+    free( recorder->recorder_state->worker_state );
+    recorder->recorder_state->worker_state = NULL;
+
     return result;
 }
 
@@ -502,123 +464,93 @@ action_replay_recorder_t_worker_safe_output_write(
     FILE * const restrict output
 );
 
-static void * action_replay_recorder_t_worker( void * thread_state )
+static action_replay_error_t action_replay_recorder_t_worker( void * state )
 {
-    action_replay_recorder_t_state_t * const recorder_state = thread_state;
-    action_replay_time_t * const event_time = action_replay_new(
-        action_replay_time_t_class(),
-        action_replay_time_t_args( action_replay_time_t_from_time_t( NULL ))
-    );
+    action_replay_recorder_t_worker_state_t * const worker_state = state;
 
-    if( NULL == event_time )
+    poll( worker_state->descriptors, POLL_DESCRIPTORS_COUNT, INFINITE_WAIT );
+
+    if
+    (
+        POLLIN ==
+            (
+                worker_state->descriptors[ POLL_RUN_FLAG_DESCRIPTOR ].revents
+                & POLLIN
+            )
+    )
     {
-        return NULL;
+        action_replay_log(
+            "%s: worker %p ordered to stop polling for events from %p\n",
+            __func__,
+            worker_state,
+            worker_state->recorder_state->input
+        );
+        return ECANCELED;
+    }
+    if
+    (
+        ( 0 != (
+            worker_state->descriptors[ POLL_RUN_FLAG_DESCRIPTOR ].revents
+            & ( POLLERR | POLLHUP | POLLNVAL )
+        ))
+        || ( 0 != (
+            worker_state->descriptors[ POLL_INPUT_DESCRIPTOR ].revents
+            & ( POLLERR | POLLHUP | POLLNVAL )
+        ))
+    )
+    {
+        action_replay_log(
+            "%s: failure polling for descriptor in worker %p\n",
+            __func__,
+            worker_state
+        );
+        return EBADF;
+    }
+    if
+    (
+        POLLIN != 
+            (
+                worker_state->descriptors[ POLL_INPUT_DESCRIPTOR ].revents
+                & POLLIN
+            )
+    )
+    {
+        return EAGAIN;
     }
 
-    struct pollfd descriptors[ POLL_DESCRIPTORS_COUNT ] =
-    {
-        {
-            .fd = fileno( recorder_state->input ),
-            .events = POLLIN
-        },
-        {
-            .fd = recorder_state->pipe_fd[ PIPE_READ ],
-            .events = POLLIN
-        }
-    };
+    action_replay_error_t result;
 
-    action_replay_log(
-        "%s: worker %p set up, waiting for events from %p\n",
-        __func__,
-        recorder_state->worker,
-        recorder_state->input
+    result = action_replay_recorder_t_worker_safe_input_read(
+        worker_state->descriptors[ POLL_INPUT_DESCRIPTOR ].fd,
+        &( worker_state->event ),
+        sizeof( struct input_event )
     );
-    while( poll( descriptors, POLL_DESCRIPTORS_COUNT, INFINITE_WAIT ))
+    if( 0 != result )
     {
-        if
-        (
-            POLLIN ==
-                ( descriptors[ POLL_RUN_FLAG_DESCRIPTOR ].revents & POLLIN )
-        )
-        {
-            action_replay_log(
-                "%s: worker %p ordered to stop polling for events from %p\n",
-                __func__,
-                recorder_state->worker,
-                recorder_state->input
-            );
-            break;
-        }
-        if
-        (
-            ( 0 != (
-                descriptors[ POLL_RUN_FLAG_DESCRIPTOR ].revents
-                & ( POLLERR | POLLHUP | POLLNVAL )
-            ))
-            || ( 0 != (
-                descriptors[ POLL_INPUT_DESCRIPTOR ].revents
-                & ( POLLERR | POLLHUP | POLLNVAL )
-            ))
-        )
-        {
-            action_replay_log(
-                "%s: failure polling for descriptor in worker %p\n",
-                __func__,
-                recorder_state->worker
-            );
-            break;
-        }
-        if
-        (
-            POLLIN != 
-                ( descriptors[ POLL_INPUT_DESCRIPTOR ].revents & POLLIN )
-        )
-        {
-            continue;
-        }
-
-        struct input_event event;
-        action_replay_error_t result;
-
-        result = action_replay_recorder_t_worker_safe_input_read(
-            descriptors[ POLL_INPUT_DESCRIPTOR ].fd,
-            &event,
-            sizeof( struct input_event )
+        action_replay_log(
+            "%s: failure reading from %p\n",
+            __func__,
+            worker_state->recorder_state->input
         );
-        if( 0 != result )
-        {
-            action_replay_log(
-                "%s: failure reading from %p\n",
-                __func__,
-                recorder_state->input
-            );
-            break;
-        }
-        result = action_replay_recorder_t_worker_safe_output_write(
-            event,
-            event_time,
-            recorder_state->zero_time,
-            recorder_state->output
-        );
-        if( 0 != result )
-        {
-            action_replay_log(
-                "%s: failure writing entry to %p\n",
-                __func__,
-                recorder_state->output
-            );
-            break;
-        }
+        return result;
     }
-    action_replay_delete( ( void * ) event_time );
-    action_replay_log(
-        "%s: worker %p stops polling from %p\n",
-        __func__,
-        recorder_state->worker,
-        recorder_state->input
+    result = action_replay_recorder_t_worker_safe_output_write(
+        worker_state->event,
+        worker_state->event_time,
+        worker_state->zero_time,
+        worker_state->recorder_state->output
     );
+    if( 0 != result )
+    {
+        action_replay_log(
+            "%s: failure writing entry to %p\n",
+            __func__,
+            worker_state->recorder_state->output
+        );
+        return result;
+    }
 
-    return NULL;
+    return EAGAIN;
 }
 
 static action_replay_error_t
@@ -729,21 +661,90 @@ action_replay_recorder_t_write_header(
     return ( 0 < fprintf_result ) ? 0 : EINVAL;
 }
 
-static inline action_replay_error_t
-action_replay_recorder_t_header_nop(
-    char const * const path_to_input_device,
-    FILE * const output
+static action_replay_return_t
+action_replay_recorder_t_start_state_destructor( void * const state )
+{
+    action_replay_recorder_t_start_state_t * const start_state = state;
+    action_replay_return_t result;
+
+    result.status = action_replay_delete( ( void * ) start_state->zero_time );
+    if( 0 == result.status )
+    {
+        free( state );
+    }
+
+    return result;
+}
+
+static action_replay_stateful_return_t
+action_replay_recorder_t_start_state_copier( void * const state )
+{
+    action_replay_stateful_return_t result;
+
+    result.state =
+        calloc( 1, sizeof( action_replay_recorder_t_start_state_t ));
+    if( NULL == result.state )
+    {
+        result.status = ENOMEM;
+        return result;
+    }
+    result.status = 0;
+
+    action_replay_recorder_t_start_state_t * const copy = result.state;
+    action_replay_recorder_t_start_state_t const * const original =
+        state;
+
+    copy->zero_time = action_replay_copy( ( void const * const ) original->zero_time );
+    if( NULL != copy->zero_time )
+    {
+        return result;
+    }
+
+    result.status = errno;
+    free( result.state );
+    result.state = NULL;
+    return result;
+}
+
+action_replay_args_t
+action_replay_recorder_t_start_state
+(
+    action_replay_time_t const * const zero_time
 )
 {
-    ( void ) path_to_input_device;
-    ( void ) output;
-    return 0;
+    action_replay_args_t result = action_replay_args_t_default_args();
+
+    action_replay_recorder_t_start_state_t start_state =
+    {
+        action_replay_copy( ( void const * const ) zero_time )
+    };
+
+    if( NULL == start_state.zero_time )
+    {
+        return result;
+    }
+
+    action_replay_stateful_return_t copy =
+        action_replay_recorder_t_start_state_copier( &start_state );
+
+    copy.status =
+        action_replay_delete( ( void * const ) start_state.zero_time );
+    if( 0 == copy.status )
+    {
+        result = ( action_replay_args_t const ) {
+            copy.state,
+            action_replay_recorder_t_start_state_destructor,
+            action_replay_recorder_t_start_state_copier
+        };
+    }
+
+    return result;
 }
 
 action_replay_class_t const * action_replay_recorder_t_class( void )
 {
     static action_replay_class_t_func_t const inheritance[] ={
-        action_replay_stateful_object_t_class,
+        action_replay_stoppable_t_class,
         NULL
     };
     static action_replay_class_t const result =
@@ -833,6 +834,7 @@ action_replay_recorder_t_args(
         strndup( path_to_input_device, INPUT_MAX_LEN ),
         strndup( path_to_output, INPUT_MAX_LEN )
     };
+
     if
     (
         ( NULL == args.path_to_input_device )
