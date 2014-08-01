@@ -1,4 +1,4 @@
-#define _POSIX_C_SOURCE 200809L /* fileno, strndup */
+#define _POSIX_C_SOURCE 200809L /* fileno */
 #define __STDC_FORMAT_MACROS
 
 #include "action_replay/args.h"
@@ -13,6 +13,7 @@
 #include "action_replay/stateful_return.h"
 #include "action_replay/stddef.h"
 #include "action_replay/stoppable.h"
+#include "action_replay/strndup.h"
 #include "action_replay/sys/types.h"
 #include "action_replay/time.h"
 #include <errno.h>
@@ -785,7 +786,7 @@ action_replay_recorder_t_args_t_copier( void * const state )
     action_replay_recorder_t_args_t const * const original_recorder_args =
         state;
 
-    recorder_args->path_to_input_device = strndup(
+    recorder_args->path_to_input_device = action_replay_strndup(
         original_recorder_args->path_to_input_device,
         INPUT_MAX_LEN
     );
@@ -794,7 +795,7 @@ action_replay_recorder_t_args_t_copier( void * const state )
         result.status = errno;
         goto handle_path_to_input_device_calloc_error;
     }
-    recorder_args->path_to_output = strndup(
+    recorder_args->path_to_output = action_replay_strndup(
         original_recorder_args->path_to_output,
         INPUT_MAX_LEN
     );
@@ -831,8 +832,8 @@ action_replay_recorder_t_args(
 
     action_replay_recorder_t_args_t args =
     {
-        strndup( path_to_input_device, INPUT_MAX_LEN ),
-        strndup( path_to_output, INPUT_MAX_LEN )
+        action_replay_strndup( path_to_input_device, INPUT_MAX_LEN ),
+        action_replay_strndup( path_to_output, INPUT_MAX_LEN )
     };
 
     if

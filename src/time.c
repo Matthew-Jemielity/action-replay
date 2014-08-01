@@ -481,13 +481,14 @@ action_replay_args_t action_replay_time_t_args( struct timespec const value )
 
 struct timespec action_replay_time_t_now( void )
 {
+#if HAVE_CLOCK_GETTIME
     struct timespec result;
 
     if( 0 == clock_gettime( CLOCK_REALTIME, &result ))
     {
         return result;
     }
-
+#elif HAVE_GETTIMEOFDAY
     struct timeval fallback;
 
     if( 0 == gettimeofday( &fallback, NULL ))
@@ -497,6 +498,10 @@ struct timespec action_replay_time_t_now( void )
             fallback.tv_usec * NANOSECONDS_IN_MICROSECOND
         };
     }
+#else
+# error "Neither clock_gettime() nor gettimeofday() were found"
+#endif /*  HAVE_GETTIMEOFDAY */
+
     return ( struct timespec const ) { 0, 0 };
 }
 

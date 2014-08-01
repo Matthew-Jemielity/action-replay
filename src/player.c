@@ -11,6 +11,7 @@
 #include "action_replay/stateful_return.h"
 #include "action_replay/stddef.h"
 #include "action_replay/stoppable.h"
+#include "action_replay/strndup.h"
 #include "action_replay/time.h"
 #include "action_replay/workqueue.h"
 #include <errno.h>
@@ -955,7 +956,7 @@ action_replay_player_t_args_t_copier( void * const state )
     action_replay_player_t_args_t * const player_args = result.state;
     action_replay_player_t_args_t const * const original_player_args = state;
 
-    player_args->path_to_input = strndup(
+    player_args->path_to_input = action_replay_strndup(
         original_player_args->path_to_input,
         INPUT_MAX_LEN
     );
@@ -983,8 +984,9 @@ action_replay_player_t_args( char const * const restrict path_to_input )
 
     action_replay_player_t_args_t args =
     {
-        strndup( path_to_input, INPUT_MAX_LEN ),
+        action_replay_strndup( path_to_input, INPUT_MAX_LEN )
     };
+
     if( NULL == args.path_to_input )
     {
         goto handle_error;

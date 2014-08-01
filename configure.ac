@@ -39,6 +39,11 @@ AC_CHECK_HEADERS([assert.h inttypes.h limits.h stdbool.h stddef.h stdint.h sys/t
 AC_CHECK_HEADERS([errno.h fcntl.h jsmn.h linux/input.h linux/types.h opa_primitives.h opa_queue.h poll.h pthread.h stdarg.h stdio.h stdlib.h string.h sys/time.h time.h unistd.h], [], [AC_MSG_ERROR([cannot find or include prerequisite header])])
 
 # Checks for library functions.
-AC_CHECK_FUNCS([clock_gettime gettimeofday strndup strtol strtoul strtoull], [], [AC_MSG_ERROR([cannot find prerequisite method])])
+AC_CHECK_FUNCS([clock_gettime])
+if test "$ac_cv_func_clock_gettime" != yes; then
+    AC_CHECK_FUNCS([gettimeofday], [], [AC_MSG_ERROR([neither clock_gettime nor gettimeofday were found])])
+fi
+AC_CHECK_FUNCS([strndup])
+AC_CHECK_FUNCS([fileno strtol strtoul strtoull], [], [AC_MSG_ERROR([cannot find prerequisite method])])
 
 AC_OUTPUT

@@ -11,6 +11,7 @@ MAIN_SOURCES = \
     src/recorder.c \
     src/stateful_object.c \
     src/stoppable.c \
+    src/strndup.c \
     src/time.c \
     src/worker.c \
     src/workqueue.c
