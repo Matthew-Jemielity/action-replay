@@ -1,7 +1,7 @@
 #                                               -*- Autoconf -*-
 # Process this file with autoconf to produce a configure script.
 
-AC_PREREQ([2.69])
+AC_PREREQ([2.64])
 AC_INIT([action-replay], [1.0], [matthew.jemielity@gmail.com])
 AC_CONFIG_SRCDIR([src/object_oriented_programming.c])
 AC_CONFIG_FILES([Makefile])
@@ -15,7 +15,6 @@ AC_PROG_CC
 AC_PROG_CC_C99
 
 # Checks for typedefs, structures, and compiler characteristics.
-AC_CHECK_HEADER_STDBOOL
 AC_HEADER_TIME
 AC_C_INLINE
 AC_C_RESTRICT
@@ -23,6 +22,7 @@ AC_TYPE_SIZE_T
 AC_TYPE_SSIZE_T
 AC_TYPE_UINT64_T
 AC_TYPE_UNSIGNED_LONG_LONG_INT
+AC_CHECK_TYPES([_Bool])
 
 # Checks for sizes (needed by some headers)
 AC_CHECK_SIZEOF([uint64_t])
