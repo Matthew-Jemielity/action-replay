@@ -1,0 +1,12 @@
+#ifndef ACTION_REPLAY_RECORDER_H__
+# error "Add #include <action_replay/recorder.h"
+#endif /* ACTION_REPLAY_RECORDER_H__ */
+
+ACTION_REPLAY_CLASS_DEFINITION( action_replay_recorder_t )
+{
+# include <action_replay/object.interface> /* must be first */
+# include <action_replay/recorder.interface>
+# include <action_replay/stateful_object.interface>
+# include <action_replay/stoppable.interface>
+};
+

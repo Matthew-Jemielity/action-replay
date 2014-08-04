@@ -1,0 +1,10 @@
+#ifndef ACTION_REPLAY_TIME_H__
+# error "Add #include <action_replay/time.h>"
+#endif /* ACTION_REPLAY_TIME_H__ */
+
+ACTION_REPLAY_CLASS_DEFINITION( action_replay_time_t )
+{
+# include <action_replay/object.interface> /* must be first */
+# include <action_replay/time.interface>
+};
+

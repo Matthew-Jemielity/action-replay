@@ -3,15 +3,15 @@
 
 # include <action_replay/args.h>
 # include <action_replay/class.h>
+# include <action_replay/class_preparation.h>
 # include <action_replay/object.h>
 # include <action_replay/return.h>
-# include <action_replay/stateful_object.h>
 # include <action_replay/stdint.h>
 # include <sys/time.h>
 # include <time.h>
 
+ACTION_REPLAY_CLASS_DECLARATION( action_replay_time_t );
 typedef struct action_replay_time_t_state_t action_replay_time_t_state_t;
-typedef struct action_replay_time_t action_replay_time_t;
 typedef action_replay_return_t
 ( * action_replay_time_t_func_t )(
     action_replay_time_t * const self,
@@ -28,12 +28,7 @@ typedef action_replay_time_t_return_t
     action_replay_time_t const * const self
 );
 
-struct action_replay_time_t
-{
-# include <action_replay/object.interface>
-# include <action_replay/stateful_object.interface>
-# include <action_replay/time.interface>
-};
+# include <action_replay/time.class>
 
 action_replay_class_t const * action_replay_time_t_class( void );
 action_replay_args_t action_replay_time_t_args( struct timespec const value );

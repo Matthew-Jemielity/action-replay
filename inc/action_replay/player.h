@@ -3,26 +3,21 @@
 
 # include <action_replay/args.h>
 # include <action_replay/class.h>
+# include <action_replay/class_preparation.h>
 # include <action_replay/object.h>
 # include <action_replay/return.h>
 # include <action_replay/stateful_object.h>
 # include <action_replay/stoppable.h>
 # include <action_replay/time.h>
 
+ACTION_REPLAY_CLASS_DECLARATION( action_replay_player_t );
 typedef struct action_replay_player_t_state_t action_replay_player_t_state_t;
-typedef struct action_replay_player_t action_replay_player_t;
 typedef action_replay_return_t
 ( * action_replay_player_t_join_func_t )(
     action_replay_player_t * const self
 );
 
-struct action_replay_player_t
-{
-# include <action_replay/object.interface>
-# include <action_replay/stateful_object.interface>
-# include <action_replay/stoppable.interface>
-# include <action_replay/player.interface>
-};
+# include <action_replay/player.class>
 
 action_replay_args_t
 action_replay_player_t_start_state(

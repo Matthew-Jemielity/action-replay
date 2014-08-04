@@ -2,8 +2,10 @@
 #define _POSIX_C_SOURCE 200809L /* strntol, fileno */
 
 #include "action_replay/args.h"
+#include "action_replay/class.h"
 #include "action_replay/error.h"
 #include "action_replay/log.h"
+#include "action_replay/macros.h"
 #include "action_replay/object_oriented_programming.h"
 #include "action_replay/object_oriented_programming_super.h"
 #include "action_replay/player.h"
@@ -259,8 +261,16 @@ action_replay_player_t_internal(
     action_replay_stateful_return_t const result =
         action_replay_player_t_state_t_new(
             args,
-            player->start, /* set in super */
-            player->stop /* set in super */
+            ACTION_REPLAY_DYNAMIC(
+                action_replay_stoppable_t_start_func_t,
+                start,
+                player
+            ), /* set in super */
+            ACTION_REPLAY_DYNAMIC(
+                action_replay_stoppable_t_stop_func_t,
+                stop,
+                player
+            ) /* set in super */
         );
     if( 0 != result.status )
     {
@@ -268,10 +278,26 @@ action_replay_player_t_internal(
         return ( action_replay_return_t const ) { result.status };
     }
 
-    player->player_state = result.state;
-    player->start = start;
-    player->stop = stop;
-    player->join = join;
+    ACTION_REPLAY_DYNAMIC(
+        action_replay_player_t_state_t *,
+        player_state,
+        player
+    ) = result.state;
+    ACTION_REPLAY_DYNAMIC(
+        action_replay_stoppable_t_start_func_t,
+        start,
+        player
+    ) = start;
+    ACTION_REPLAY_DYNAMIC(
+        action_replay_stoppable_t_stop_func_t,
+        stop,
+        player
+    ) = stop;
+    ACTION_REPLAY_DYNAMIC(
+        action_replay_player_t_join_func_t,
+        join,
+        player
+    ) = join;
 
     return ( action_replay_return_t const ) { result.status };
 }
@@ -310,14 +336,23 @@ action_replay_player_t_constructor(
 static action_replay_return_t
 action_replay_player_t_destructor( void * const object )
 {
-    action_replay_player_t * const player = object;
+    action_replay_player_t_state_t * const player_state =
+        ACTION_REPLAY_DYNAMIC(
+            action_replay_player_t_state_t *,
+            player_state,
+            object
+        );
     action_replay_return_t result = { 0 };
 
-    if( NULL == player->player_state )
+    if( NULL == player_state )
     {
         return result;
     }
-    result = player->stop( ( void * const ) player );
+    result = ACTION_REPLAY_DYNAMIC(
+            action_replay_stoppable_t_stop_func_t,
+            stop,
+            object
+        )( object );
     if
     (
         ( 0 != result.status )
@@ -327,19 +362,31 @@ action_replay_player_t_destructor( void * const object )
         return result;
     }
     /* super calls stoppable destructor, which expects stoppable funcs */
-    player->start = player->player_state->stoppable_start;
-    player->stop = player->player_state->stoppable_stop;
+    ACTION_REPLAY_DYNAMIC(
+        action_replay_stoppable_t_start_func_t,
+        start,
+        object
+    ) = player_state->stoppable_start;
+    ACTION_REPLAY_DYNAMIC(
+        action_replay_stoppable_t_stop_func_t,
+        stop,
+        object
+    ) = player_state->stoppable_stop;
     SUPER(
         DESTRUCT,
         action_replay_player_t_class,
-        player,
+        object,
         NULL,
         action_replay_args_t_default_args()
     );
-    result = action_replay_player_t_state_t_delete( player->player_state );
+    result = action_replay_player_t_state_t_delete( player_state );
     if( 0 == result.status )
     {
-        player->player_state = NULL;
+        ACTION_REPLAY_DYNAMIC(
+            action_replay_player_t_state_t *,
+            player_state,
+            object
+        ) = NULL;
     }
 
     return result;
@@ -354,6 +401,34 @@ action_replay_player_t_copier(
     ( void ) copy;
     ( void ) original;
     return ( action_replay_return_t const ) { ENOSYS };
+}
+
+static action_replay_reflector_return_t
+action_replay_player_t_reflector(
+    char const * const restrict type,
+    char const * const restrict name
+)
+{
+#define ACTION_REPLAY_CURRENT_CLASS action_replay_player_t
+#include "action_replay/reflection_preparation.h"
+
+    static action_replay_reflection_entry_t const map[] =
+#include "action_replay/player.class"
+
+#undef ACTION_REPLAY_CLASS_DEFINITION
+#undef ACTION_REPLAY_CLASS_FIELD
+#undef ACTION_REPLAY_CLASS_METHOD
+#undef ACTION_REPLAY_CURRENT_CLASS
+
+    static size_t const map_size =
+        sizeof( map ) / sizeof( action_replay_reflection_entry_t );
+
+    return action_replay_class_t_generic_reflector_logic(
+        type,
+        name,
+        map,
+        map_size
+    );
 }
 
 static action_replay_error_t action_replay_player_t_worker( void * state );
@@ -377,6 +452,12 @@ action_replay_player_t_start_func_t_start(
         return ( action_replay_return_t const ) { EINVAL };
     }
 
+    action_replay_player_t_state_t * const player_state =
+        ACTION_REPLAY_DYNAMIC(
+            action_replay_player_t_state_t *,
+            player_state,
+            self
+        );
     action_replay_player_t_worker_state_t * const worker_state =
         calloc( 1, sizeof( action_replay_player_t_worker_state_t ));
 
@@ -390,26 +471,27 @@ action_replay_player_t_start_func_t_start(
 
     worker_state->zero_time = player_start_state->zero_time;
 
-    action_replay_player_t * const player = ( void * const ) self;
     action_replay_return_t result;
 
-    result = player->player_state->queue->start(
-        player->player_state->queue
-    );
+    result = ACTION_REPLAY_DYNAMIC(
+            action_replay_workqueue_t_func_t,
+            start,
+            player_state->queue
+        )( player_state->queue );
     if( 0 != result.status )
     {
         action_replay_log(
             "%s: failure starting workqueue %p\n",
             __func__,
-            player->player_state->queue
+            player_state->queue
         );
         goto handle_queue_start_error;
     }
 
-    worker_state->player_state = player->player_state;
+    worker_state->player_state = player_state;
     worker_state->buffer = NULL;
     worker_state->size = 0;
-    result = player->player_state->stoppable_start(
+    result = player_state->stoppable_start(
         self,
         action_replay_stoppable_t_start_state(
             action_replay_player_t_worker,
@@ -421,13 +503,10 @@ action_replay_player_t_start_func_t_start(
     if( 0 == result.status )
     {
         /* XXX: possible leak */
-        action_replay_args_t_delete( player->player_state->start_state );
-        player->player_state->start_state = start_state;
-        player->player_state->worker_state = worker_state;
-        OPA_store_ptr(
-            &( player->player_state->input_flag ),
-            &input_processing
-        );
+        action_replay_args_t_delete( player_state->start_state );
+        player_state->start_state = start_state;
+        player_state->worker_state = worker_state;
+        OPA_store_ptr( &( player_state->input_flag ), &input_processing );
         return result;
     }
 
@@ -444,35 +523,39 @@ action_replay_player_t_stop_func_t_internal(
     action_replay_workqueue_t_func_t const queue_operation
 )
 {
-    action_replay_player_t * const player = ( void * const ) self;
+    action_replay_player_t_state_t * const player_state =
+        ACTION_REPLAY_DYNAMIC(
+            action_replay_player_t_state_t *,
+            player_state,
+            self
+        );
     action_replay_return_t result;
 
     result = queue_operation(
-        player->player_state->queue
+        player_state->queue
     );
     if( 0 != result.status )
     {
         action_replay_log(
             "%s: failure stopping workqueue %p\n",
             __func__,
-            player->player_state->queue
+            player_state->queue
         );
         return result;
     }
 
-    result = player->player_state->stoppable_stop( self );
+    result = player_state->stoppable_stop( self );
     /* at most one thread can succeed */
     if( 0 != result.status )
     {
         return result;
     }
     /* XXX: possible leak */
-    action_replay_args_t_delete( player->player_state->start_state );
-    player->player_state->start_state =
-        action_replay_args_t_default_args();
-    free( player->player_state->worker_state->buffer );
-    free( player->player_state->worker_state );
-    player->player_state->worker_state = NULL;
+    action_replay_args_t_delete( player_state->start_state );
+    player_state->start_state = action_replay_args_t_default_args();
+    free( player_state->worker_state->buffer );
+    free( player_state->worker_state );
+    player_state->worker_state = NULL;
 
     return result;
 }
@@ -494,21 +577,27 @@ action_replay_player_t_stop_func_t_stop(
         return ( action_replay_return_t const ) { EINVAL };
     }
 
-    action_replay_player_t * const player = ( void * const ) self;
+    action_replay_player_t_state_t * const player_state =
+        ACTION_REPLAY_DYNAMIC(
+            action_replay_player_t_state_t *,
+            player_state,
+            self
+        );
     action_replay_return_t const result =
         action_replay_player_t_stop_func_t_internal(
             self,
-            player->player_state->queue->stop
+            ACTION_REPLAY_DYNAMIC(
+                action_replay_workqueue_t_func_t,
+                stop,
+                player_state->queue
+            )
         );
 
     /* at most one thread can succeed */
     if( 0 == result.status )
     {
-        OPA_store_ptr(
-            &( player->player_state->input_flag ),
-            &input_finished
-        );
-        pthread_cond_broadcast( &( player->player_state->condition ));
+        OPA_store_ptr( &( player_state->input_flag ), &input_finished );
+        pthread_cond_broadcast( &( player_state->condition ));
     }
 
     return result;
@@ -541,29 +630,41 @@ action_replay_player_t_join_func_t_join(
      * to set input_flag indicating it read whole input file
      */
     action_replay_player_t_input_flag_t const * input_flag;
+    action_replay_player_t_state_t * const player_state =
+        ACTION_REPLAY_DYNAMIC(
+            action_replay_player_t_state_t *,
+            player_state,
+            self
+        );
 
-    pthread_mutex_lock( &( self->player_state->mutex ));
+    pthread_mutex_lock( &( player_state->mutex ));
     /* will go through if start() wasn't called */
     while( INPUT_PROCESSING ==
-        * ( input_flag = OPA_load_ptr( &( self->player_state->input_flag )))
+        * ( input_flag = OPA_load_ptr( &( player_state->input_flag )))
     )
     {
         pthread_cond_wait(
-            &( self->player_state->condition ),
-            &( self->player_state->mutex )
+            &( player_state->condition ),
+            &( player_state->mutex )
         );
     }
-    pthread_mutex_unlock( &( self->player_state->mutex ));
+    pthread_mutex_unlock( &( player_state->mutex ));
 
     return action_replay_player_t_stop_func_t_internal(
         ( void * const ) self,
-        self->player_state->queue->join
+        ACTION_REPLAY_DYNAMIC(
+            action_replay_workqueue_t_func_t,
+            join,
+            player_state->queue
+        )
     );
 }
 
 typedef struct
 {
     action_replay_time_t * zero_time;
+    action_replay_time_t_func_t add;
+    action_replay_time_t_func_t sub;
     FILE * output;
     struct timespec sleep;
     struct input_event event;
@@ -620,7 +721,11 @@ static action_replay_error_t action_replay_player_t_worker( void * state )
     }
 
     action_replay_return_t const put_result =
-        worker_state->player_state->queue->put(
+        ACTION_REPLAY_DYNAMIC(
+            action_replay_workqueue_t_put_func_t,
+            put,
+            worker_state->player_state->queue
+        )(
             worker_state->player_state->queue,
             action_replay_player_t_process_item,
             parse_state
@@ -690,6 +795,18 @@ action_replay_player_t_parse_line(
         return NULL;
     }
     parse_state->zero_time = zero_time;
+    parse_state->add =
+        ACTION_REPLAY_DYNAMIC(
+            action_replay_time_t_func_t,
+            add,
+            zero_time
+        );
+    parse_state->sub =
+        ACTION_REPLAY_DYNAMIC(
+            action_replay_time_t_func_t,
+            sub,
+            zero_time
+        );
     parse_state->output = output;
     parse_state->sleep = action_replay_time_t_from_nanoseconds(
         strtoull( buffer + tokens[ INPUT_JSON_TIME_TOKEN ].start, NULL, 10 )
@@ -724,14 +841,14 @@ static void action_replay_player_t_process_item( void * const state )
         || ( 0 < parse_state->sleep.tv_nsec )
     )
     {
-        parse_state->zero_time->add(
+        parse_state->add(
             parse_state->zero_time,
             parse_state->sleep
         );
 
         struct timespec const now = action_replay_time_t_now();
         action_replay_return_t const result =
-            parse_state->zero_time->sub( parse_state->zero_time, now );
+            parse_state->sub( parse_state->zero_time, now );
 
         if( E2BIG == result.status )
         {
@@ -741,7 +858,7 @@ static void action_replay_player_t_process_item( void * const state )
         struct timespec const sleep_time =
             action_replay_time_t_from_time_t( parse_state->zero_time );
 
-        parse_state->zero_time->add( parse_state->zero_time, now );
+        parse_state->add( parse_state->zero_time, now );
         nanosleep( &sleep_time, NULL );
     }
 
@@ -915,6 +1032,7 @@ action_replay_player_t_start_state
 action_replay_class_t const * action_replay_player_t_class( void )
 {
     static action_replay_class_t_func_t const inheritance[] = {
+        action_replay_stateful_object_t_class,
         action_replay_stoppable_t_class,
         NULL
     };
@@ -924,6 +1042,7 @@ action_replay_class_t const * action_replay_player_t_class( void )
         action_replay_player_t_constructor,
         action_replay_player_t_destructor,
         action_replay_player_t_copier,
+        action_replay_player_t_reflector,
         inheritance
     };
 

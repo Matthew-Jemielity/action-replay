@@ -2,6 +2,12 @@
 # error "Add #include <action_replay/stateful_object.h>"
 #endif /* ACTION_REPLAY_STATEFUL_OBJECT_H__ */
 
-action_replay_stateful_object_t_state_t * object_state;
-action_replay_stateful_object_t_args_func_t args;
+ACTION_REPLAY_CLASS_FIELD(
+    action_replay_stateful_object_t_state_t *,
+    stateful_object_state
+)
+ACTION_REPLAY_CLASS_METHOD(
+    action_replay_stateful_object_t_args_func_t,
+    args
+)
 

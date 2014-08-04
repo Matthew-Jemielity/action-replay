@@ -3,12 +3,13 @@
 
 # include <action_replay/args.h>
 # include <action_replay/class.h>
+# include <action_replay/class_preparation.h>
 # include <action_replay/object.h>
 # include <action_replay/return.h>
 
+ACTION_REPLAY_CLASS_DECLARATION( action_replay_workqueue_t );
 typedef struct action_replay_workqueue_t_state_t
     action_replay_workqueue_t_state_t;
-typedef struct action_replay_workqueue_t action_replay_workqueue_t;
 typedef action_replay_return_t
 ( * action_replay_workqueue_t_func_t )(
     action_replay_workqueue_t * const self
@@ -22,11 +23,7 @@ typedef action_replay_return_t
     void * const state
 );
 
-struct action_replay_workqueue_t
-{
-# include <action_replay/object.interface>
-# include <action_replay/workqueue.interface>
-};
+# include <action_replay/workqueue.class>
 
 action_replay_class_t const * action_replay_workqueue_t_class( void );
 action_replay_args_t action_replay_workqueue_t_args( void );

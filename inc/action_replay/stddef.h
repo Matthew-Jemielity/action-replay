@@ -12,6 +12,9 @@
 /* max size allowed by standard */
 typedef unsigned long int size_t;
 #  endif /* size_t */
+#  ifndef offsetof
+#   define offsetof( type, mbr ) ( ( size_t ) ( &( ( type * ) 0 )->mbr ) )
+#  endif /* offsetof */
 # endif /* HAVE_STDDEF_H */
 
 #endif /* ACTION_REPLAY_STDDEF_H__ */

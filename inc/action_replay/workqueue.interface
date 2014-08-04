@@ -2,9 +2,12 @@
 # error "Add #include <action_replay/workqueue.h>"
 #endif /* ACTION_REPLAY_WORKQUEUE_H__ */
 
-action_replay_workqueue_t_state_t * workqueue_state;
-action_replay_workqueue_t_put_func_t put;
-action_replay_workqueue_t_func_t start;
-action_replay_workqueue_t_func_t stop;
-action_replay_workqueue_t_func_t join;
+ACTION_REPLAY_CLASS_FIELD(
+    action_replay_workqueue_t_state_t *,
+    workqueue_state
+)
+ACTION_REPLAY_CLASS_METHOD( action_replay_workqueue_t_put_func_t, put )
+ACTION_REPLAY_CLASS_METHOD( action_replay_workqueue_t_func_t, start )
+ACTION_REPLAY_CLASS_METHOD( action_replay_workqueue_t_func_t, stop )
+ACTION_REPLAY_CLASS_METHOD( action_replay_workqueue_t_func_t, join )
 

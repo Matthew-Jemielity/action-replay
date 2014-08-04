@@ -6,6 +6,8 @@
 #include "action_replay/inttypes.h"
 #include "action_replay/limits.h"
 #include "action_replay/log.h"
+#include "action_replay/macros.h"
+#include "action_replay/object.h"
 #include "action_replay/object_oriented_programming.h"
 #include "action_replay/object_oriented_programming_super.h"
 #include "action_replay/return.h"
@@ -68,7 +70,6 @@ action_replay_time_t_internal(
         operation,
     action_replay_time_t * const restrict time,
     action_replay_time_t const * const restrict original_time,
-    action_replay_args_t const args,
     uint64_t const nanoseconds_value,
     action_replay_time_t_func_t const set,
     action_replay_time_t_func_t const add,
@@ -79,24 +80,54 @@ action_replay_time_t_internal(
     action_replay_time_t_conversion_func_t const seconds
 )
 {
-    SUPER( operation, action_replay_time_t_class, time, original_time, args );
+    SUPER(
+        operation,
+        action_replay_time_t_class,
+        time,
+        original_time,
+        action_replay_args_t_default_args()
+    );
 
     action_replay_stateful_return_t result;
 
     result = action_replay_time_t_state_t_new( nanoseconds_value );
     if( 0 != result.status )
     {
-        SUPER( DESTRUCT, action_replay_time_t_class, time, NULL, args );
+        SUPER(
+            DESTRUCT,
+            action_replay_time_t_class,
+            time,
+            NULL,
+            action_replay_args_t_default_args()
+        );
+
         return ( action_replay_return_t const ) { result.status };
     }
-    time->time_state = result.state;
-    time->set = set;
-    time->add = add;
-    time->sub = sub;
-    time->nanoseconds = nanoseconds;
-    time->microseconds = microseconds;
-    time->milliseconds = milliseconds;
-    time->seconds = seconds;
+    ACTION_REPLAY_DYNAMIC( action_replay_time_t_state_t *, time_state, time ) =
+        result.state;
+    ACTION_REPLAY_DYNAMIC( action_replay_time_t_func_t, set, time ) = set;
+    ACTION_REPLAY_DYNAMIC( action_replay_time_t_func_t, add, time ) = add;
+    ACTION_REPLAY_DYNAMIC( action_replay_time_t_func_t, sub, time ) = sub;
+    ACTION_REPLAY_DYNAMIC(
+        action_replay_time_t_conversion_func_t,
+        nanoseconds,
+        time
+    ) = nanoseconds;
+    ACTION_REPLAY_DYNAMIC(
+        action_replay_time_t_conversion_func_t,
+        microseconds,
+        time
+    ) = microseconds;
+    ACTION_REPLAY_DYNAMIC(
+        action_replay_time_t_conversion_func_t,
+        milliseconds,
+        time
+    ) = milliseconds;
+    ACTION_REPLAY_DYNAMIC(
+        action_replay_time_t_conversion_func_t,
+        seconds,
+        time
+    ) = seconds;
 
     return ( action_replay_return_t const ) { 0 };
 }
@@ -152,7 +183,6 @@ action_replay_time_t_constructor(
         CONSTRUCT,
         object,
         NULL,
-        args,
         action_replay_time_t_timespec_to_nanoseconds( time_args->value ),
         action_replay_time_t_func_t_set,
         action_replay_time_t_func_t_add,
@@ -167,24 +197,33 @@ action_replay_time_t_constructor(
 static action_replay_return_t
 action_replay_time_t_destructor( void * const object )
 {
-    action_replay_time_t * const time = object;
+    action_replay_time_t_state_t * const time_state =
+        ACTION_REPLAY_DYNAMIC(
+            action_replay_time_t_state_t *,
+            time_state,
+            object
+        );
     action_replay_return_t result = { 0 };
 
-    if( NULL == time->time_state )
+    if( NULL == time_state )
     {
         return result;
     }
     SUPER(
         DESTRUCT,
         action_replay_time_t_class,
-        time,
+        object,
         NULL,
         action_replay_args_t_default_args()
     );
-    result = action_replay_time_t_state_t_delete( time->time_state );
+    result = action_replay_time_t_state_t_delete( time_state );
     if( 0 == result.status )
     {
-        time->time_state = NULL;
+        ACTION_REPLAY_DYNAMIC(
+            action_replay_time_t_state_t *,
+            time_state,
+            object
+        ) = NULL;
     }
 
     return result;
@@ -196,34 +235,67 @@ action_replay_time_t_copier(
     void const * const restrict original
 )
 {
-    action_replay_time_t const * const original_time = original;
-    action_replay_args_t_return_t args =
-        original_time->args( ( void * ) original_time );
+    return action_replay_time_t_internal(
+        COPY,
+        copy,
+        original,
+        ACTION_REPLAY_DYNAMIC(
+            action_replay_time_t_state_t *,
+            time_state,
+            original
+        )->nanoseconds,
+        ACTION_REPLAY_DYNAMIC( action_replay_time_t_func_t, set, original ),
+        ACTION_REPLAY_DYNAMIC( action_replay_time_t_func_t, add, original ),
+        ACTION_REPLAY_DYNAMIC( action_replay_time_t_func_t, sub, original ),
+        ACTION_REPLAY_DYNAMIC(
+            action_replay_time_t_conversion_func_t,
+            nanoseconds,
+            original
+        ),
+        ACTION_REPLAY_DYNAMIC(
+            action_replay_time_t_conversion_func_t,
+            microseconds,
+            original
+        ),
+        ACTION_REPLAY_DYNAMIC(
+            action_replay_time_t_conversion_func_t,
+            milliseconds,
+            original
+        ),
+        ACTION_REPLAY_DYNAMIC(
+            action_replay_time_t_conversion_func_t,
+            seconds,
+            original
+        )
+    );
+}
 
-    if( 0 != args.status )
-    {
-        return ( action_replay_return_t const ) { args.status };
-    }
+static action_replay_reflector_return_t
+action_replay_time_t_reflector(
+    char const * const restrict type,
+    char const * const restrict name
+)
+{
+#define ACTION_REPLAY_CURRENT_CLASS action_replay_time_t
+#include "action_replay/reflection_preparation.h"
 
-    action_replay_return_t const result =
-        action_replay_time_t_internal(
-            COPY,
-            copy,
-            original_time,
-            args.args,
-            original_time->time_state->nanoseconds,
-            original_time->set,
-            original_time->add,
-            original_time->sub,
-            original_time->nanoseconds,
-            original_time->microseconds,
-            original_time->milliseconds,
-            original_time->seconds
-        );
+    static action_replay_reflection_entry_t const map[] =
+#include "action_replay/time.class"
 
-    action_replay_args_t_delete( args.args );
+#undef ACTION_REPLAY_CLASS_DEFINITION
+#undef ACTION_REPLAY_CLASS_FIELD
+#undef ACTION_REPLAY_CLASS_METHOD
+#undef ACTION_REPLAY_CURRENT_CLASS
 
-    return result;
+    static size_t const map_size =
+        sizeof( map ) / sizeof( action_replay_reflection_entry_t );
+
+    return action_replay_class_t_generic_reflector_logic(
+        type,
+        name,
+        map,
+        map_size
+    );
 }
 
 static action_replay_return_t
@@ -244,7 +316,11 @@ action_replay_time_t_func_t_set(
         return ( action_replay_return_t const ) { EINVAL };
     }
 
-    self->time_state->nanoseconds =
+    ACTION_REPLAY_DYNAMIC(
+        action_replay_time_t_state_t *,
+        time_state,
+        self
+    )->nanoseconds =
         action_replay_time_t_timespec_to_nanoseconds( value );
     return ( action_replay_return_t const ) { 0 };
 }
@@ -267,10 +343,16 @@ action_replay_time_t_func_t_add(
         return ( action_replay_return_t const ) { EINVAL };
     }
 
+    action_replay_time_t_state_t * const time_state =
+        ACTION_REPLAY_DYNAMIC(
+            action_replay_time_t_state_t *,
+            time_state,
+            self
+        );
     uint64_t const added_value =
         action_replay_time_t_timespec_to_nanoseconds( value );
 
-    if(( UINT64_MAX - added_value ) < self->time_state->nanoseconds )
+    if(( UINT64_MAX - added_value ) < time_state->nanoseconds )
     {
         action_replay_log(
             "%s: cannot add - resulting value would overflow\n",
@@ -279,7 +361,7 @@ action_replay_time_t_func_t_add(
         return ( action_replay_return_t const ) { E2BIG };
     }
 
-    self->time_state->nanoseconds += added_value;
+    time_state->nanoseconds += added_value;
     return ( action_replay_return_t const ) { 0 };
 }
 
@@ -301,10 +383,16 @@ action_replay_time_t_func_t_sub(
         return ( action_replay_return_t const ) { EINVAL };
     }
 
+    action_replay_time_t_state_t * const time_state =
+        ACTION_REPLAY_DYNAMIC(
+            action_replay_time_t_state_t *,
+            time_state,
+            self
+        );
     uint64_t const subbed_value =
         action_replay_time_t_timespec_to_nanoseconds( value );
 
-    if( subbed_value > self->time_state->nanoseconds )
+    if( subbed_value > time_state->nanoseconds )
     {
         action_replay_log(
             "%s: substracting later time from earlier time is not allowed: %"
@@ -313,13 +401,13 @@ action_replay_time_t_func_t_sub(
             PRIu64
             "\n",
             __func__,
-            self->time_state->nanoseconds,
+            time_state->nanoseconds,
             subbed_value
         );
         return ( action_replay_return_t const ) { E2BIG };
     }
 
-    self->time_state->nanoseconds -= subbed_value;
+    time_state->nanoseconds -= subbed_value;
     return ( action_replay_return_t const ) { 0 };
 }
 
@@ -351,7 +439,12 @@ action_replay_time_t_conversion_func_t_internal(
         return ( action_replay_time_t_return_t const ) { EINVAL, 0 };
     }
 
-    uint64_t value = time->time_state->nanoseconds;
+    uint64_t value =
+        ACTION_REPLAY_DYNAMIC(
+            action_replay_time_t_state_t *,
+            time_state,
+            time
+        )->nanoseconds;
 
     switch( type )
     {
@@ -418,7 +511,7 @@ action_replay_time_t_conversion_func_t_seconds(
 action_replay_class_t const * action_replay_time_t_class( void )
 {
     static action_replay_class_t_func_t const inheritance[] = {
-        action_replay_stateful_object_t_class,
+        action_replay_object_t_class,
         NULL
     };
     static action_replay_class_t const result =
@@ -427,6 +520,7 @@ action_replay_class_t const * action_replay_time_t_class( void )
         action_replay_time_t_constructor,
         action_replay_time_t_destructor,
         action_replay_time_t_copier,
+        action_replay_time_t_reflector,
         inheritance
     };
 
@@ -530,7 +624,11 @@ action_replay_time_t_from_time_t( action_replay_time_t const * const value )
     }
 
     return action_replay_time_t_from_nanoseconds(
-        value->time_state->nanoseconds
+        ACTION_REPLAY_DYNAMIC(
+            action_replay_time_t_state_t *,
+            time_state,
+            value
+        )->nanoseconds
     );
 }
 

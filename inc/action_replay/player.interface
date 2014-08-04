@@ -2,6 +2,6 @@
 # error "Add #include <action_replay/player.h>"
 #endif /* ACTION_REPLAY_PLAYER_H__ */
 
-action_replay_player_t_state_t * player_state;
-action_replay_player_t_join_func_t join;
+ACTION_REPLAY_CLASS_FIELD( action_replay_player_t_state_t *, player_state )
+ACTION_REPLAY_CLASS_METHOD( action_replay_player_t_join_func_t, join )
 

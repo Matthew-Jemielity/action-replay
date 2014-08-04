@@ -1,0 +1,7 @@
+#ifndef ACTION_REPLAY_MACROS_H__
+# define ACTION_REPLAY_MACROS_H__
+
+# define ACTION_REPLAY_STRINGIFY( arg ) #arg
+
+#endif /* ACTION_REPLAY_MACROS_H__ */
+

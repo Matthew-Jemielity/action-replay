@@ -1,6 +1,8 @@
 #include "action_replay/args.h"
+#include "action_replay/class.h"
 #include "action_replay/error.h"
 #include "action_replay/log.h"
+#include "action_replay/macros.h"
 #include "action_replay/object_oriented_programming.h"
 #include "action_replay/object_oriented_programming_super.h"
 #include "action_replay/return.h"
@@ -112,13 +114,41 @@ action_replay_worker_t_internal(
         return ( action_replay_return_t const ) { result.status };
     }
 
-    worker->worker_state = result.state;
-    worker->start_lock = start_lock;
-    worker->start_locked = start_locked;
-    worker->start_unlock = start_unlock;
-    worker->stop_lock = stop_lock;
-    worker->stop_locked = stop_locked;
-    worker->stop_unlock = stop_unlock;
+    ACTION_REPLAY_DYNAMIC(
+        action_replay_worker_t_state_t *,
+        worker_state,
+        worker
+    ) = result.state;
+    ACTION_REPLAY_DYNAMIC(
+        action_replay_worker_t_func_t,
+        start_lock,
+        worker
+    ) = start_lock;
+    ACTION_REPLAY_DYNAMIC(
+        action_replay_worker_t_start_func_t,
+        start_locked,
+        worker
+    ) = start_locked;
+    ACTION_REPLAY_DYNAMIC(
+        action_replay_worker_t_unlock_func_t,
+        start_unlock,
+        worker
+    ) = start_unlock;
+    ACTION_REPLAY_DYNAMIC(
+        action_replay_worker_t_func_t,
+        stop_lock,
+        worker
+    ) = stop_lock;
+    ACTION_REPLAY_DYNAMIC(
+        action_replay_worker_t_func_t,
+        stop_locked,
+        worker
+    ) = stop_locked;
+    ACTION_REPLAY_DYNAMIC(
+        action_replay_worker_t_unlock_func_t,
+        stop_unlock,
+        worker
+    ) = stop_unlock;
 
     return ( action_replay_return_t const ) { result.status };
 }
@@ -174,19 +204,39 @@ action_replay_worker_t_constructor(
 static action_replay_return_t
 action_replay_worker_t_destructor( void * const object )
 {
-    action_replay_worker_t * const worker = object;
+    action_replay_worker_t_state_t * const worker_state =
+        ACTION_REPLAY_DYNAMIC(
+            action_replay_worker_t_state_t *,
+            worker_state,
+            object
+        );
     action_replay_return_t result = { 0 };
 
-    if( NULL == worker->worker_state )
+    if( NULL == worker_state )
     {
         return result;
     }
-    switch(( result = worker->stop_lock( worker )).status )
+    result = 
+        ACTION_REPLAY_DYNAMIC(
+            action_replay_worker_t_func_t,
+            stop_lock,
+            object
+        )( object );
+    switch( result.status )
     {
         case 0:
             {
-                result = worker->stop_locked( worker );
-                worker->stop_unlock( worker, ( 0 == result.status ));
+                result =
+                    ACTION_REPLAY_DYNAMIC(
+                        action_replay_worker_t_func_t,
+                        stop_locked,
+                        object
+                    )( object );
+                    ACTION_REPLAY_DYNAMIC(
+                        action_replay_worker_t_unlock_func_t,
+                        stop_unlock,
+                        object
+                    )( object, ( 0 == result.status ));
                 if( 0 != result.status )
                 {
                     return result;
@@ -201,14 +251,18 @@ action_replay_worker_t_destructor( void * const object )
     SUPER(
         DESTRUCT,
         action_replay_worker_t_class,
-        worker,
+        object,
         NULL,
         action_replay_args_t_default_args()
     );
-    result = action_replay_worker_t_state_t_delete( worker->worker_state );
+    result = action_replay_worker_t_state_t_delete( worker_state );
     if( 0 == result.status )
     {
-        worker->worker_state = NULL;
+        ACTION_REPLAY_DYNAMIC(
+            action_replay_worker_t_state_t *,
+            worker_state,
+            object
+        ) = NULL;
     }
 
     return result;
@@ -220,9 +274,12 @@ action_replay_worker_t_copier(
     void const * const restrict original
 )
 {
-    action_replay_worker_t const * const original_worker = original;
     action_replay_args_t_return_t const args =
-        original_worker->args( ( void * ) original_worker );
+        ACTION_REPLAY_DYNAMIC(
+            action_replay_stateful_object_t_args_func_t,
+            args,
+            original
+        )( original );
 
     if( 0 != args.status )
     {
@@ -235,12 +292,36 @@ action_replay_worker_t_copier(
             copy,
             original,
             args.args,
-            original_worker->start_lock,
-            original_worker->start_locked,
-            original_worker->start_unlock,
-            original_worker->stop_lock,
-            original_worker->stop_locked,
-            original_worker->stop_unlock
+            ACTION_REPLAY_DYNAMIC(
+                action_replay_worker_t_func_t,
+                start_lock,
+                original
+            ),
+            ACTION_REPLAY_DYNAMIC(
+                action_replay_worker_t_start_func_t,
+                start_locked,
+                original
+            ),
+            ACTION_REPLAY_DYNAMIC(
+                action_replay_worker_t_unlock_func_t,
+                start_unlock,
+                original
+            ),
+            ACTION_REPLAY_DYNAMIC(
+                action_replay_worker_t_func_t,
+                stop_lock,
+                original
+            ),
+            ACTION_REPLAY_DYNAMIC(
+                action_replay_worker_t_func_t,
+                stop_locked,
+                original
+            ),
+            ACTION_REPLAY_DYNAMIC(
+                action_replay_worker_t_unlock_func_t,
+                stop_unlock,
+                original
+            )
         );
 
     /* 
@@ -251,6 +332,34 @@ action_replay_worker_t_copier(
     action_replay_args_t_delete( args.args );
 
     return result;
+}
+
+static action_replay_reflector_return_t
+action_replay_worker_t_reflector(
+    char const * const restrict type,
+    char const * const restrict name
+)
+{
+#define ACTION_REPLAY_CURRENT_CLASS action_replay_worker_t
+#include "action_replay/reflection_preparation.h"
+
+    static action_replay_reflection_entry_t const map[] =
+#include "action_replay/worker.class"
+
+#undef ACTION_REPLAY_CLASS_DEFINITION
+#undef ACTION_REPLAY_CLASS_FIELD
+#undef ACTION_REPLAY_CLASS_METHOD
+#undef ACTION_REPLAY_CURRENT_CLASS
+
+    static size_t const map_size =
+        sizeof( map ) / sizeof( action_replay_reflection_entry_t );
+
+    return action_replay_class_t_generic_reflector_logic(
+        type,
+        name,
+        map,
+        map_size
+    );
 }
 
 static action_replay_return_t
@@ -270,9 +379,15 @@ action_replay_worker_t_func_t_start_lock(
         return ( action_replay_return_t const ) { EINVAL };
     }
 
+    action_replay_worker_t_state_t * const worker_state =
+        ACTION_REPLAY_DYNAMIC(
+            action_replay_worker_t_state_t *,
+            worker_state,
+            self
+        );
     action_replay_worker_t_worker_status_t const * const worker_status =
         OPA_cas_ptr(
-            &( self->worker_state->status ),
+            &( worker_state->status ),
             &worker_stopped,
             &worker_starting
         );
@@ -320,11 +435,18 @@ action_replay_worker_t_start_func_t_start_locked(
         return ( action_replay_return_t const ) { EINVAL };
     }
 
+    action_replay_worker_t_state_t * const worker_state =
+        ACTION_REPLAY_DYNAMIC(
+            action_replay_worker_t_state_t *,
+            worker_state,
+            self
+        );
+
     return ( action_replay_return_t const ) {
         pthread_create(
-            &( self->worker_state->worker ),
+            &( worker_state->worker ),
             NULL,
-            self->worker_state->thread_function,
+            worker_state->thread_function,
             state
         )
     };
@@ -347,6 +469,7 @@ action_replay_worker_t_unlock_func_t_start_unlock(
     {
         return ( action_replay_return_t const ) { EINVAL };
     }
+
     action_replay_log(
         "%s: unlocking worker %p with condition = %d\n",
         __func__,
@@ -354,9 +477,15 @@ action_replay_worker_t_unlock_func_t_start_unlock(
         ( int ) successful
     );
 
+    action_replay_worker_t_state_t * const worker_state =
+        ACTION_REPLAY_DYNAMIC(
+            action_replay_worker_t_state_t *,
+            worker_state,
+            self
+        );
     action_replay_worker_t_worker_status_t const * const worker_status =
         OPA_cas_ptr(
-            &( self->worker_state->status ),
+            &( worker_state->status ),
             &worker_starting,
             ( successful ) ? &worker_started : &worker_stopped
         );
@@ -383,9 +512,15 @@ action_replay_worker_t_func_t_stop_lock(
         return ( action_replay_return_t const ) { EINVAL };
     }
 
+    action_replay_worker_t_state_t * const worker_state =
+        ACTION_REPLAY_DYNAMIC(
+            action_replay_worker_t_state_t *,
+            worker_state,
+            self
+        );
     action_replay_worker_t_worker_status_t const * const worker_status =
         OPA_cas_ptr(
-            &( self->worker_state->status ),
+            &( worker_state->status ),
             &worker_started,
             &worker_stopping
         );
@@ -432,7 +567,14 @@ action_replay_worker_t_func_t_stop_locked(
     }
 
     return ( action_replay_return_t const ) {
-        pthread_join( self->worker_state->worker, NULL )
+        pthread_join(
+            ACTION_REPLAY_DYNAMIC(
+                action_replay_worker_t_state_t *,
+                worker_state,
+                self
+            )->worker,
+            NULL
+        )
     }; /* wait for thread to finish using state */
 }
 
@@ -460,9 +602,15 @@ action_replay_worker_t_unlock_func_t_stop_unlock(
         ( int ) successful
     );
 
+    action_replay_worker_t_state_t * const worker_state =
+        ACTION_REPLAY_DYNAMIC(
+            action_replay_worker_t_state_t *,
+            worker_state,
+            self
+        );
     action_replay_worker_t_worker_status_t const * const worker_status =
         OPA_cas_ptr(
-            &( self->worker_state->status ),
+            &( worker_state->status ),
             &worker_stopping,
             ( successful ) ? &worker_stopped : &worker_started
         );
@@ -484,6 +632,7 @@ action_replay_class_t const * action_replay_worker_t_class( void )
         action_replay_worker_t_constructor,
         action_replay_worker_t_destructor,
         action_replay_worker_t_copier,
+        action_replay_worker_t_reflector,
         inheritance
     };
 

@@ -3,13 +3,14 @@
 
 # include <action_replay/args.h>
 # include <action_replay/class.h>
+# include <action_replay/class_preparation.h>
 # include <action_replay/error.h>
+# include <action_replay/object.h>
 # include <action_replay/return.h>
-# include <action_replay/stateful_object.h>
 
+ACTION_REPLAY_CLASS_DECLARATION( action_replay_stoppable_t );
 typedef struct action_replay_stoppable_t_state_t
     action_replay_stoppable_t_state_t;
-typedef struct action_replay_stoppable_t action_replay_stoppable_t;
 typedef action_replay_return_t
 ( * action_replay_stoppable_t_start_func_t )(
     action_replay_stoppable_t * const self,
@@ -20,12 +21,7 @@ typedef action_replay_return_t
     action_replay_stoppable_t * const self
 );
 
-struct action_replay_stoppable_t
-{
-# include <action_replay/object.interface>
-# include <action_replay/stateful_object.interface>
-# include <action_replay/stoppable.interface>
-};
+# include <action_replay/stoppable.class>
 
 typedef action_replay_error_t
 ( * action_replay_stoppable_t_loop_iteration_func_t )( void * state );

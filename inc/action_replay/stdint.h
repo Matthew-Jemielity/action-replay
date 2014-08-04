@@ -4,7 +4,8 @@
 # if HAVE_STDINT_H
 #  include <stdint.h>
 # else /* ! HAVE_STDINT_H */
-/* only need uint64_t and UINT64_MAX */
+/* only need uint8_t, uint64_t and UINT64_MAX */
+typedef unsigned char uint8_t;
 #  if ( 8 == SIZEOF_UNSIGNED_LONG_INT )
 #   ifndef UINT64_MAX
 #    define UINT64_MAX ( ( unsigned long int ) -1 )

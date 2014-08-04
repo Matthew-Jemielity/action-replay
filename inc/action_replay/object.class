@@ -2,5 +2,8 @@
 # error "Add #include <action_replay/object.h>"
 #endif /* ACTION_REPLAY_OBJECT_H__ */
 
-ACTION_REPLAY_CLASS_FIELD( action_replay_class_t const *, _class )
+ACTION_REPLAY_CLASS_DEFINITION( action_replay_object_t )
+{
+# include <action_replay/object.interface>
+};
 

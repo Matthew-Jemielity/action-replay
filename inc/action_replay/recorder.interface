@@ -2,5 +2,8 @@
 # error "Add #include <action_replay/recorder.h>"
 #endif /* ACTION_REPLAY_RECORDER_H__ */
 
-action_replay_recorder_t_state_t * recorder_state;
+ACTION_REPLAY_CLASS_FIELD(
+    action_replay_recorder_t_state_t *,
+    recorder_state
+)
 

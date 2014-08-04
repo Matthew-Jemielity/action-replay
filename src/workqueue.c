@@ -1,6 +1,8 @@
 #include "action_replay/args.h"
+#include "action_replay/class.h"
 #include "action_replay/error.h"
 #include "action_replay/log.h"
+#include "action_replay/macros.h"
 #include "action_replay/object.h"
 #include "action_replay/object_oriented_programming.h"
 #include "action_replay/object_oriented_programming_super.h"
@@ -168,11 +170,31 @@ action_replay_workqueue_t_internal(
         return ( action_replay_return_t const ) { result.status };
     }
 
-    workqueue->workqueue_state = result.state;
-    workqueue->put = put;
-    workqueue->start = start;
-    workqueue->stop = stop;
-    workqueue->join = join;
+    ACTION_REPLAY_DYNAMIC(
+        action_replay_workqueue_t_state_t *,
+        workqueue_state,
+        workqueue
+    ) = result.state;
+    ACTION_REPLAY_DYNAMIC(
+        action_replay_workqueue_t_put_func_t,
+        put,
+        workqueue
+    ) = put;
+    ACTION_REPLAY_DYNAMIC(
+        action_replay_workqueue_t_func_t,
+        start,
+        workqueue
+    ) = start;
+    ACTION_REPLAY_DYNAMIC(
+        action_replay_workqueue_t_func_t,
+        stop,
+        workqueue
+    ) = stop;
+    ACTION_REPLAY_DYNAMIC(
+        action_replay_workqueue_t_func_t,
+        join,
+        workqueue
+    ) = join;
 
     return ( action_replay_return_t const ) { result.status };
 }
@@ -217,14 +239,22 @@ action_replay_workqueue_t_constructor(
 static action_replay_return_t
 action_replay_workqueue_t_destructor( void * const object )
 {
-    action_replay_workqueue_t * const workqueue = object;
+    action_replay_workqueue_t_state_t * const workqueue_state =
+        ACTION_REPLAY_DYNAMIC(
+            action_replay_workqueue_t_state_t *,
+            workqueue_state,
+            object
+        );
     action_replay_return_t result = { 0 };
 
-    if( NULL == workqueue->workqueue_state )
+    if( NULL == workqueue_state )
     {
         return result;
     }
-    result = workqueue->stop( workqueue );
+    result = ACTION_REPLAY_DYNAMIC(
+        action_replay_workqueue_t_func_t,
+        stop,
+        object )( object );
     if
     (
         ( 0 != result.status )
@@ -236,16 +266,18 @@ action_replay_workqueue_t_destructor( void * const object )
     SUPER(
         DESTRUCT,
         action_replay_workqueue_t_class,
-        workqueue,
+        object,
         NULL,
         action_replay_args_t_default_args()
     );
-    result = action_replay_workqueue_t_state_t_delete(
-        workqueue->workqueue_state
-    );
+    result = action_replay_workqueue_t_state_t_delete( workqueue_state );
     if( 0 == result.status )
     {
-        workqueue->workqueue_state = NULL;
+        ACTION_REPLAY_DYNAMIC(
+            action_replay_workqueue_t_state_t *,
+            workqueue_state,
+            object
+        ) = NULL;
     }
 
     return result;
@@ -260,6 +292,34 @@ action_replay_workqueue_t_copier(
     ( void ) copy;
     ( void ) original;
     return ( action_replay_return_t ) { ENOSYS };
+}
+
+static action_replay_reflector_return_t
+action_replay_workqueue_t_reflector(
+    char const * const restrict type,
+    char const * const restrict name
+)
+{
+#define ACTION_REPLAY_CURRENT_CLASS action_replay_workqueue_t
+#include "action_replay/reflection_preparation.h"
+
+    static action_replay_reflection_entry_t const map[] =
+#include "action_replay/workqueue.class"
+
+#undef ACTION_REPLAY_CLASS_DEFINITION
+#undef ACTION_REPLAY_CLASS_FIELD
+#undef ACTION_REPLAY_CLASS_METHOD
+#undef ACTION_REPLAY_CURRENT_CLASS
+
+    static size_t const map_size =
+        sizeof( map ) / sizeof( action_replay_reflection_entry_t );
+
+    return action_replay_class_t_generic_reflector_logic(
+        type,
+        name,
+        map,
+        map_size
+    );
 }
 
 static action_replay_return_t
@@ -281,7 +341,13 @@ action_replay_workqueue_t_put_func_t_put(
     {
         return ( action_replay_return_t const ) { EINVAL };
     }
-
+    
+    action_replay_workqueue_t_state_t * const workqueue_state =
+        ACTION_REPLAY_DYNAMIC(
+            action_replay_workqueue_t_state_t *,
+            workqueue_state,
+            self
+        );
     action_replay_workqueue_t_item_t * item;
     
     item = calloc( 1, sizeof( action_replay_workqueue_t_item_t ));
@@ -293,14 +359,14 @@ action_replay_workqueue_t_put_func_t_put(
     item->payload = payload;
     item->state = state;
     OPA_Queue_enqueue(
-        &( self->workqueue_state->queue ),
+        &( workqueue_state->queue ),
         item,
         action_replay_workqueue_t_item_t,
         header
     );
 
     return ( action_replay_return_t const ) {
-        pthread_cond_broadcast( &( self->workqueue_state->condition ))
+        pthread_cond_broadcast( &( workqueue_state->condition ))
     };
 }
 
@@ -321,11 +387,15 @@ action_replay_workqueue_t_func_t_start(
         return ( action_replay_return_t const ) { EINVAL };
     }
 
+    action_replay_workqueue_t_state_t * const workqueue_state =
+        ACTION_REPLAY_DYNAMIC(
+            action_replay_workqueue_t_state_t *,
+            workqueue_state,
+            self
+        );
     action_replay_return_t result;
 
-    result = self->workqueue_state->worker->start_lock(
-        self->workqueue_state->worker
-    );
+    result = workqueue_state->worker->start_lock( workqueue_state->worker );
     switch( result.status )
     {
         case 0:
@@ -335,13 +405,13 @@ action_replay_workqueue_t_func_t_start(
         default:
             return result;
     }
-    OPA_store_ptr( &( self->workqueue_state->run_flag ), &workqueue_continue );
-    result = self->workqueue_state->worker->start_locked(
-        self->workqueue_state->worker,
-        self->workqueue_state
+    OPA_store_ptr( &( workqueue_state->run_flag ), &workqueue_continue );
+    result = workqueue_state->worker->start_locked(
+        workqueue_state->worker,
+        workqueue_state
     );
-    self->workqueue_state->worker->start_unlock(
-        self->workqueue_state->worker,
+    workqueue_state->worker->start_unlock(
+        workqueue_state->worker,
         ( 0 == result.status )
     );
     return result;
@@ -365,10 +435,16 @@ action_replay_workqueue_t_func_t_finish(
         return ( action_replay_return_t const ) { EINVAL };
     }
 
+    action_replay_workqueue_t_state_t * const workqueue_state =
+        ACTION_REPLAY_DYNAMIC(
+            action_replay_workqueue_t_state_t *,
+            workqueue_state,
+            self
+        );
     action_replay_return_t result;
 
-    result = self->workqueue_state->worker->stop_lock(
-        self->workqueue_state->worker
+    result = workqueue_state->worker->stop_lock(
+        workqueue_state->worker
     );
     switch( result.status )
     {
@@ -379,19 +455,19 @@ action_replay_workqueue_t_func_t_finish(
         default:
             return result;
     }
-    OPA_store_ptr( &( self->workqueue_state->run_flag ), run_flag );
+    OPA_store_ptr( &( workqueue_state->run_flag ), run_flag );
     /* in case thread is waiting on empty queue */
     result = ( action_replay_return_t const ) {
-        pthread_cond_broadcast( &( self->workqueue_state->condition ))
+        pthread_cond_broadcast( &( workqueue_state->condition ))
     };
     if( 0 == result.status )
     {
-        result = self->workqueue_state->worker->stop_locked(
-            self->workqueue_state->worker
+        result = workqueue_state->worker->stop_locked(
+            workqueue_state->worker
         );
     }
-    self->workqueue_state->worker->stop_unlock(
-        self->workqueue_state->worker,
+    workqueue_state->worker->stop_unlock(
+        workqueue_state->worker,
         ( 0 == result.status )
     );
     return result;
@@ -509,6 +585,7 @@ action_replay_class_t const * action_replay_workqueue_t_class( void )
         action_replay_workqueue_t_constructor,
         action_replay_workqueue_t_destructor,
         action_replay_workqueue_t_copier,
+        action_replay_workqueue_t_reflector,
         inheritance
     };
 

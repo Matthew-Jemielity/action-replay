@@ -4,6 +4,7 @@ bin_PROGRAMS = action-replay
 
 MAIN_SOURCES = \
     src/args.c \
+    src/class.c \
     src/log.c \
     src/object.c \
     src/object_oriented_programming.c \

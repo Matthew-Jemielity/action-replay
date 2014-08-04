@@ -2,6 +2,7 @@
 
 #include "action_replay/args.h"
 #include "action_replay/class.h"
+#include "action_replay/class_preparation.h"
 #include "action_replay/log.h"
 #include "action_replay/object.h"
 #include "action_replay/object_oriented_programming.h"
@@ -16,8 +17,8 @@
 #include <stdlib.h>
 #include <unistd.h>
 
+ACTION_REPLAY_CLASS_DECLARATION( action_replay_log_t );
 typedef struct action_replay_log_t_state_t action_replay_log_t_state_t;
-typedef struct action_replay_log_t action_replay_log_t;
 typedef void ( * action_replay_log_t_func_t )(
     action_replay_log_t const * const restrict self,
     char const * const restrict format,
@@ -26,10 +27,10 @@ typedef void ( * action_replay_log_t_func_t )(
 
 struct action_replay_log_t
 {
-# include <action_replay/object.interface>
-# include <action_replay/stateful_object.interface>
-    action_replay_log_t_state_t * log_state;
-    action_replay_log_t_func_t log;
+#include <action_replay/object.interface>
+#include <action_replay/stateful_object.interface>
+    ACTION_REPLAY_CLASS_FIELD( action_replay_log_t_state_t *, log_state )
+    ACTION_REPLAY_CLASS_METHOD( action_replay_log_t_func_t, log )
 };
 
 struct action_replay_log_t_state_t
@@ -79,7 +80,7 @@ action_replay_log_t_internal(
     action_replay_log_t * const restrict log,
     action_replay_log_t const * const restrict original_log,
     action_replay_args_t const args,
-    action_replay_log_t_func_t const log_func
+    action_replay_log_t_func_t const func
 )
 {
     SUPER( operation, action_replay_log_t_class, log, original_log, args );
@@ -92,8 +93,9 @@ action_replay_log_t_internal(
         return ( action_replay_return_t const ) { result.status };
     }
 
-    log->log_state = result.state;
-    log->log = log_func;
+    ACTION_REPLAY_DYNAMIC( action_replay_log_t_state_t *, log_state, log ) =
+        result.state;
+    ACTION_REPLAY_DYNAMIC( action_replay_log_t_func_t, log, log ) = func;
 
     return ( action_replay_return_t const ) { 0 };
 }
@@ -123,24 +125,33 @@ action_replay_return_t action_replay_log_t_constructor(
 static action_replay_return_t
 action_replay_log_t_destructor( void * const object )
 {
-    action_replay_log_t * const log = object;
+    action_replay_log_t_state_t * const log_state =
+        ACTION_REPLAY_DYNAMIC(
+            action_replay_log_t_state_t *,
+            log_state,
+            object
+        );
     action_replay_return_t result = { 0 };
 
-    if( NULL == log->log_state )
+    if( NULL == log_state )
     {
         return result;
     }
     SUPER(
         DESTRUCT,
         action_replay_log_t_class,
-        log,
+        object,
         NULL,
         action_replay_args_t_default_args()
     );
-    result = action_replay_log_t_state_t_delete( log->log_state );
+    result = action_replay_log_t_state_t_delete( log_state );
     if( 0 == result.status )
     {
-        log->log_state = NULL;
+        ACTION_REPLAY_DYNAMIC(
+            action_replay_log_t_state_t *,
+            log_state,
+            object
+        ) = NULL;
     }
 
     return result;
@@ -155,6 +166,38 @@ action_replay_log_t_copier(
     ( void ) copy;
     ( void ) original;
     return ( action_replay_return_t const ) { ENOSYS };
+}
+
+static action_replay_reflector_return_t
+action_replay_log_t_reflector(
+    char const * const restrict type,
+    char const * const restrict name
+)
+{
+#define ACTION_REPLAY_CURRENT_CLASS action_replay_log_t
+#include "action_replay/reflection_preparation.h"
+
+    static action_replay_reflection_entry_t const map[] = {
+#include "action_replay/object.interface"
+#include "action_replay/stateful_object.interface"
+        ACTION_REPLAY_CLASS_FIELD( action_replay_log_t_state_t *, log_state )
+        ACTION_REPLAY_CLASS_METHOD( action_replay_log_t_func_t, log )
+    };
+
+#undef ACTION_REPLAY_CLASS_DEFINITION
+#undef ACTION_REPLAY_CLASS_FIELD
+#undef ACTION_REPLAY_CLASS_METHOD
+#undef ACTION_REPLAY_CURRENT_CLASS
+
+    static size_t const map_size =
+        sizeof( map ) / sizeof( action_replay_reflection_entry_t );
+
+    return action_replay_class_t_generic_reflector_logic(
+        type,
+        name,
+        map,
+        map_size
+    );
 }
 
 static void
@@ -176,7 +219,15 @@ action_replay_log_t_func_t_log(
         return;
     }
 
-    vfprintf( self->log_state->output, format, list );
+    vfprintf(
+        ACTION_REPLAY_DYNAMIC(
+            action_replay_log_t_state_t *,
+            log_state,
+            self
+        )->output,
+        format,
+        list
+    );
 }
 
 static action_replay_class_t const * action_replay_log_t_class( void )
@@ -191,6 +242,7 @@ static action_replay_class_t const * action_replay_log_t_class( void )
         action_replay_log_t_constructor,
         action_replay_log_t_destructor,
         action_replay_log_t_copier,
+        action_replay_log_t_reflector,
         inheritance
     };
 
@@ -293,7 +345,11 @@ void action_replay_log( char const * const format, ... )
     va_list list;
 
     va_start( list, format );
-    log->log( log, format, list );
+    ACTION_REPLAY_DYNAMIC( action_replay_log_t_func_t, log, log )(
+        log,
+        format,
+        list
+    );
     va_end( list );
 }
 

@@ -2,16 +2,19 @@
 #define __STDC_FORMAT_MACROS
 
 #include "action_replay/args.h"
+#include "action_replay/class.h"
 #include "action_replay/error.h"
 #include "action_replay/inttypes.h"
 #include "action_replay/limits.h"
 #include "action_replay/log.h"
+#include "action_replay/macros.h"
 #include "action_replay/object_oriented_programming.h"
 #include "action_replay/object_oriented_programming_super.h"
 #include "action_replay/recorder.h"
 #include "action_replay/return.h"
 #include "action_replay/stateful_return.h"
 #include "action_replay/stddef.h"
+#include "action_replay/stdint.h"
 #include "action_replay/stoppable.h"
 #include "action_replay/strndup.h"
 #include "action_replay/sys/types.h"
@@ -215,8 +218,16 @@ action_replay_recorder_t_internal(
     
     result = action_replay_recorder_t_state_t_new(
         args,
-        recorder->start, /* set in super */
-        recorder->stop /* set in super */
+        ACTION_REPLAY_DYNAMIC(
+            action_replay_stoppable_t_start_func_t,
+            start,
+            recorder
+        ), /* set in super */
+        ACTION_REPLAY_DYNAMIC(
+            action_replay_stoppable_t_stop_func_t,
+            stop,
+            recorder
+        ) /* set in super */
     );
     if( 0 != result.status )
     {
@@ -229,9 +240,21 @@ action_replay_recorder_t_internal(
         );
         return ( action_replay_return_t const ) { result.status };
     }
-    recorder->recorder_state = result.state;
-    recorder->start = start;
-    recorder->stop = stop;
+    ACTION_REPLAY_DYNAMIC(
+        action_replay_recorder_t_state_t *,
+        recorder_state,
+        recorder
+    ) = result.state;
+    ACTION_REPLAY_DYNAMIC(
+        action_replay_stoppable_t_start_func_t,
+        start,
+        recorder
+    ) = start;
+    ACTION_REPLAY_DYNAMIC(
+        action_replay_stoppable_t_stop_func_t,
+        stop,
+        recorder
+    ) = stop;
 
     return ( action_replay_return_t const ) { result.status };
 }
@@ -265,14 +288,23 @@ action_replay_recorder_t_constructor(
 static action_replay_return_t
 action_replay_recorder_t_destructor( void * const object )
 {
-    action_replay_recorder_t * const recorder = object;
+    action_replay_recorder_t_state_t * const recorder_state =
+        ACTION_REPLAY_DYNAMIC(
+            action_replay_recorder_t_state_t *,
+            recorder_state,
+            object
+        );
     action_replay_return_t result = { 0 };
 
-    if( NULL == recorder->recorder_state )
+    if( NULL == recorder_state )
     {
         return result;
     }
-    result = recorder->stop( ( void * const ) recorder );
+    result = ACTION_REPLAY_DYNAMIC(
+            action_replay_stoppable_t_stop_func_t,
+            stop,
+            object
+        )( object );
     if
     (
         ( 0 != result.status )
@@ -282,21 +314,31 @@ action_replay_recorder_t_destructor( void * const object )
         return result;
     }
     /* super calls stoppable_t destructor, which expects stoppable funcs */
-    recorder->start = recorder->recorder_state->stoppable_start;
-    recorder->stop = recorder->recorder_state->stoppable_stop;
+    ACTION_REPLAY_DYNAMIC(
+        action_replay_stoppable_t_start_func_t,
+        start,
+        object
+    ) = recorder_state->stoppable_start;
+    ACTION_REPLAY_DYNAMIC(
+        action_replay_stoppable_t_stop_func_t,
+        stop,
+        object
+    ) = recorder_state->stoppable_stop;
     SUPER(
         DESTRUCT,
         action_replay_recorder_t_class,
-        recorder,
+        object,
         NULL,
         action_replay_args_t_default_args()
     );
-    result = action_replay_recorder_t_state_t_delete(
-        recorder->recorder_state
-    );
+    result = action_replay_recorder_t_state_t_delete( recorder_state );
     if( 0 == result.status )
     {
-        recorder->recorder_state = NULL;
+        ACTION_REPLAY_DYNAMIC(
+            action_replay_recorder_t_state_t *,
+            recorder_state,
+            object
+        ) = NULL;
     }
 
     return result;
@@ -311,6 +353,34 @@ action_replay_recorder_t_copier(
     ( void ) copy;
     ( void ) original;
     return ( action_replay_return_t const ) { ENOSYS };
+}
+
+static action_replay_reflector_return_t
+action_replay_recorder_t_reflector(
+    char const * const restrict type,
+    char const * const restrict name
+)
+{
+#define ACTION_REPLAY_CURRENT_CLASS action_replay_recorder_t
+#include "action_replay/reflection_preparation.h"
+
+    static action_replay_reflection_entry_t const map[] =
+#include "action_replay/recorder.class"
+
+#undef ACTION_REPLAY_CLASS_DEFINITION
+#undef ACTION_REPLAY_CLASS_FIELD
+#undef ACTION_REPLAY_CLASS_METHOD
+#undef ACTION_REPLAY_CURRENT_CLASS
+
+    static size_t const map_size =
+        sizeof( map ) / sizeof( action_replay_reflection_entry_t );
+
+    return action_replay_class_t_generic_reflector_logic(
+        type,
+        name,
+        map,
+        map_size
+    );
 }
 
 static action_replay_error_t
@@ -335,6 +405,12 @@ action_replay_recorder_t_start_func_t_start(
         return ( action_replay_return_t const ) { EINVAL };
     }
 
+    action_replay_recorder_t_state_t * const recorder_state =
+        ACTION_REPLAY_DYNAMIC(
+            action_replay_recorder_t_state_t *,
+            recorder_state,
+            self
+        );
     action_replay_recorder_t_worker_state_t * const worker_state =
         calloc( 1, sizeof( action_replay_recorder_t_worker_state_t ));
 
@@ -359,23 +435,21 @@ action_replay_recorder_t_start_func_t_start(
         goto handle_event_time_creation_error;
     }
 
-    action_replay_recorder_t * const recorder = ( void * const ) self;
-
     worker_state->descriptors[ POLL_INPUT_DESCRIPTOR ] = ( struct pollfd )
     {
-        .fd = fileno( recorder->recorder_state->input ),
+        .fd = fileno( recorder_state->input ),
         .events = POLLIN
     };
     worker_state->descriptors[ POLL_RUN_FLAG_DESCRIPTOR ] = ( struct pollfd )
     {
-        .fd = recorder->recorder_state->pipe_fd[ PIPE_READ ],
+        .fd = recorder_state->pipe_fd[ PIPE_READ ],
         .events = POLLIN
     };
     /* zero_time was copied internally */
     worker_state->zero_time = recorder_start_state->zero_time;
-    worker_state->recorder_state = recorder->recorder_state;
+    worker_state->recorder_state = recorder_state;
 
-    result = recorder->recorder_state->stoppable_start(
+    result = recorder_state->stoppable_start(
         self,
         action_replay_stoppable_t_start_state(
             action_replay_recorder_t_worker,
@@ -387,9 +461,9 @@ action_replay_recorder_t_start_func_t_start(
     if( 0 == result.status )
     {
         /* XXX: possible leak */
-        action_replay_args_t_delete( recorder->recorder_state->start_state );
-        recorder->recorder_state->start_state = start_state;
-        recorder->recorder_state->worker_state = worker_state;
+        action_replay_args_t_delete( recorder_state->start_state );
+        recorder_state->start_state = start_state;
+        recorder_state->worker_state = worker_state;
         return result;
     }
 
@@ -417,36 +491,40 @@ action_replay_recorder_t_stop_func_t_stop(
         return ( action_replay_return_t const ) { EINVAL };
     }
 
-    action_replay_recorder_t * const recorder = ( void * const ) self;
+    action_replay_recorder_t_state_t * const recorder_state =
+        ACTION_REPLAY_DYNAMIC(
+            action_replay_recorder_t_state_t *,
+            recorder_state,
+            self
+        );
     action_replay_return_t result;
 
     /* force exit from poll */
-    if( 1 > write( recorder->recorder_state->pipe_fd[ PIPE_WRITE ], " ", 1 ))
+    if( 1 > write( recorder_state->pipe_fd[ PIPE_WRITE ], " ", 1 ))
     {
         action_replay_log(
             "%s: failure forcing the worker %p thread to wake up\n",
             __func__,
-            recorder->recorder_state->worker_state
+            recorder_state->worker_state
         );
         result.status = errno;
         return result;
     }
-    result = recorder->recorder_state->stoppable_stop( self );
+    result = recorder_state->stoppable_stop( self );
     /* at most one thread can succeed */
     if( 0 != result.status )
     {
         return result;
     }
     /* XXX: possible leak */
-    action_replay_args_t_delete( recorder->recorder_state->start_state );
-    recorder->recorder_state->start_state =
-        action_replay_args_t_default_args();
+    action_replay_args_t_delete( recorder_state->start_state );
+    recorder_state->start_state = action_replay_args_t_default_args();
     /* XXX: possible leak */
     action_replay_delete(
-        ( void * ) recorder->recorder_state->worker_state->event_time
+        ( void * ) recorder_state->worker_state->event_time
     );
-    free( recorder->recorder_state->worker_state );
-    recorder->recorder_state->worker_state = NULL;
+    free( recorder_state->worker_state );
+    recorder_state->worker_state = NULL;
 
     return result;
 }
@@ -454,7 +532,7 @@ action_replay_recorder_t_stop_func_t_stop(
 static action_replay_error_t
 action_replay_recorder_t_worker_safe_input_read(
     int fd,
-    void * const buf,
+    struct input_event * const buf,
     size_t const size
 );
 static action_replay_error_t
@@ -557,7 +635,7 @@ static action_replay_error_t action_replay_recorder_t_worker( void * state )
 static action_replay_error_t
 action_replay_recorder_t_worker_safe_input_read(
     int fd,
-    void * const buf,
+    struct input_event * const buf,
     size_t const size
 )
 {
@@ -567,10 +645,16 @@ action_replay_recorder_t_worker_safe_input_read(
         return EINVAL;
     }
 
+    uint8_t * const u8_casted_buf = ( void * ) buf;
     ssize_t count = 0;
+
     do
     {
-        ssize_t read_result = read( fd, buf + count, size - count );
+        ssize_t read_result = read(
+            fd,
+            u8_casted_buf + count,
+            size - count
+        );
         if( 0 == read_result )
         {
             /* EOF in input stream should not happen */
@@ -601,33 +685,40 @@ action_replay_recorder_t_worker_safe_output_write(
         ", \"type\": %hu, \"code\": %hu, \"value\": %d }";
     action_replay_return_t result;
 
-    result = event_time->set(
-        event_time,
-        action_replay_time_t_from_timeval( event.time )
-    );
+    result =
+        ACTION_REPLAY_DYNAMIC( action_replay_time_t_func_t, set, event_time )(
+            event_time,
+            action_replay_time_t_from_timeval( event.time )
+        );
     if( 0 != result.status )
     {
         return result.status;
     }
-    result = event_time->sub(
-        event_time,
-        action_replay_time_t_from_time_t( zero_time )
-    );
+    result =
+        ACTION_REPLAY_DYNAMIC( action_replay_time_t_func_t, sub, event_time )(
+            event_time,
+            action_replay_time_t_from_time_t( zero_time )
+        );
     if( 0 != result.status )
     {
         return result.status;
     }
-    result = zero_time->add(
-        zero_time,
-        action_replay_time_t_from_time_t( event_time )
-    );
+    result =
+        ACTION_REPLAY_DYNAMIC( action_replay_time_t_func_t, add, zero_time )(
+            zero_time,
+            action_replay_time_t_from_time_t( event_time )
+        );
     if( 0 != result.status )
     {
         return result.status;
     }
 
     action_replay_time_t_return_t const conversion_result =
-        event_time->nanoseconds( event_time );
+        ACTION_REPLAY_DYNAMIC(
+            action_replay_time_t_conversion_func_t,
+            nanoseconds,
+            event_time
+        )( event_time );
 
     if( 0 != conversion_result.status )
     {
@@ -695,7 +786,9 @@ action_replay_recorder_t_start_state_copier( void * const state )
     action_replay_recorder_t_start_state_t const * const original =
         state;
 
-    copy->zero_time = action_replay_copy( ( void const * const ) original->zero_time );
+    copy->zero_time = action_replay_copy(
+        ( void const * const ) original->zero_time
+    );
     if( NULL != copy->zero_time )
     {
         return result;
@@ -745,6 +838,7 @@ action_replay_recorder_t_start_state
 action_replay_class_t const * action_replay_recorder_t_class( void )
 {
     static action_replay_class_t_func_t const inheritance[] ={
+        action_replay_stateful_object_t_class,
         action_replay_stoppable_t_class,
         NULL
     };
@@ -754,6 +848,7 @@ action_replay_class_t const * action_replay_recorder_t_class( void )
         action_replay_recorder_t_constructor,
         action_replay_recorder_t_destructor,
         action_replay_recorder_t_copier,
+        action_replay_recorder_t_reflector,
         inheritance
     };
 

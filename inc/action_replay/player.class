@@ -1,0 +1,12 @@
+#ifndef ACTION_REPLAY_PLAYER_H__
+# error "Add #include <action_replay/player.h"
+#endif /* ACTION_REPLAY_PLAYER_H__ */
+
+ACTION_REPLAY_CLASS_DEFINITION( action_replay_player_t )
+{
+# include <action_replay/object.interface> /* must be first */
+# include <action_replay/player.interface>
+# include <action_replay/stateful_object.interface>
+# include <action_replay/stoppable.interface>
+};
+

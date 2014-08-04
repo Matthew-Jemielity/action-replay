@@ -1,6 +1,9 @@
 #include "action_replay/args.h"
+#include "action_replay/class.h"
 #include "action_replay/error.h"
 #include "action_replay/log.h"
+#include "action_replay/macros.h"
+#include "action_replay/object.h"
 #include "action_replay/object_oriented_programming.h"
 #include "action_replay/object_oriented_programming_super.h"
 #include "action_replay/return.h"
@@ -105,7 +108,6 @@ action_replay_stoppable_t_internal(
         operation,
     action_replay_stoppable_t * const restrict stoppable,
     action_replay_stoppable_t const * const restrict original_stoppable,
-    action_replay_args_t const args,
     action_replay_stoppable_t_start_func_t const start,
     action_replay_stoppable_t_stop_func_t const stop
 )
@@ -115,7 +117,7 @@ action_replay_stoppable_t_internal(
         action_replay_stoppable_t_class,
         stoppable,
         original_stoppable,
-        args
+        action_replay_args_t_default_args()
     );
 
     action_replay_stateful_return_t result;
@@ -128,13 +130,25 @@ action_replay_stoppable_t_internal(
             action_replay_stoppable_t_class,
             stoppable,
             NULL,
-            args
+            action_replay_args_t_default_args()
         );
         return ( action_replay_return_t const ) { result.status };
     }
-    stoppable->stoppable_state = result.state;
-    stoppable->start = start;
-    stoppable->stop = stop;
+    ACTION_REPLAY_DYNAMIC(
+        action_replay_stoppable_t_state_t *,
+        stoppable_state,
+        stoppable
+    ) = result.state;
+    ACTION_REPLAY_DYNAMIC(
+        action_replay_stoppable_t_start_func_t,
+        start,
+        stoppable
+    ) = start;
+    ACTION_REPLAY_DYNAMIC(
+        action_replay_stoppable_t_stop_func_t,
+        stop,
+        stoppable
+    ) = stop;
 
     return ( action_replay_return_t const ) { result.status };
 }
@@ -155,11 +169,12 @@ action_replay_stoppable_t_constructor(
     action_replay_args_t const args
 )
 {
+    ( void ) args;
+
     return action_replay_stoppable_t_internal(
         CONSTRUCT,
         object,
         NULL,
-        args,
         action_replay_stoppable_t_start_func_t_start,
         action_replay_stoppable_t_stop_func_t_stop
     );
@@ -168,14 +183,23 @@ action_replay_stoppable_t_constructor(
 static action_replay_return_t
 action_replay_stoppable_t_destructor( void * const object )
 {
-    action_replay_stoppable_t * const stoppable = object;
+    action_replay_stoppable_t_state_t * const stoppable_state =
+        ACTION_REPLAY_DYNAMIC(
+            action_replay_stoppable_t_state_t *,
+            stoppable_state,
+            object
+        );
     action_replay_return_t result = { 0 };
 
-    if( NULL == stoppable->stoppable_state )
+    if( NULL == stoppable_state )
     {
         return result;
     }
-    result = stoppable->stop( stoppable );
+    result = ACTION_REPLAY_DYNAMIC(
+        action_replay_stoppable_t_stop_func_t,
+        stop,
+        object
+    )( object );
     if
     (
         ( 0 != result.status )
@@ -187,53 +211,74 @@ action_replay_stoppable_t_destructor( void * const object )
     SUPER(
         DESTRUCT,
         action_replay_stoppable_t_class,
-        stoppable,
+        object,
         NULL,
         action_replay_args_t_default_args()
     );
     result = action_replay_stoppable_t_state_t_delete(
-        stoppable->stoppable_state
+        stoppable_state
     );
     if( 0 == result.status )
     {
-        stoppable->stoppable_state = NULL;
+        ACTION_REPLAY_DYNAMIC(
+            action_replay_stoppable_t_state_t *,
+            stoppable_state,
+            object
+        ) = NULL;
     }
 
     return result;
 }
 
-static action_replay_return_t
+static inline action_replay_return_t
 action_replay_stoppable_t_copier(
     void * const restrict copy,
     void const * const restrict original
 )
 {
-    action_replay_stoppable_t const * const original_stoppable = original;
-    action_replay_args_t_return_t args =
-        original_stoppable->args( ( void * ) original_stoppable );
-
-    if( 0 != args.status )
-    {
-        return ( action_replay_return_t const ) { args.status };
-    }
-
-    action_replay_return_t const result = action_replay_stoppable_t_internal(
+    return action_replay_stoppable_t_internal(
         COPY,
         copy,
         original,
-        args.args,
-        original_stoppable->start,
-        original_stoppable->stop
+        ACTION_REPLAY_DYNAMIC(
+            action_replay_stoppable_t_start_func_t,
+            start,
+            original
+        ),
+        ACTION_REPLAY_DYNAMIC(
+            action_replay_stoppable_t_stop_func_t,
+            stop,
+            original
+        )
     );
+}
 
-    /* 
-     * error here will result in unhandled memory leak
-     * is it better to leave it (non-critical) or handle it
-     * by adding complexity and deleting the copy?
-     */
-    action_replay_args_t_delete( args.args );
+static action_replay_reflector_return_t
+action_replay_stoppable_t_reflector(
+    char const * const restrict type,
+    char const * const restrict name
+)
+{
+#define ACTION_REPLAY_CURRENT_CLASS action_replay_stoppable_t
+#include "action_replay/reflection_preparation.h"
 
-    return result;
+    static action_replay_reflection_entry_t const map[] =
+#include "action_replay/stoppable.class"
+
+#undef ACTION_REPLAY_CLASS_DEFINITION
+#undef ACTION_REPLAY_CLASS_FIELD
+#undef ACTION_REPLAY_CLASS_METHOD
+#undef ACTION_REPLAY_CURRENT_CLASS
+
+    static size_t const map_size =
+        sizeof( map ) / sizeof( action_replay_reflection_entry_t );
+
+    return action_replay_class_t_generic_reflector_logic(
+        type,
+        name,
+        map,
+        map_size
+    );
 }
 
 static action_replay_return_t
@@ -255,11 +300,19 @@ action_replay_stoppable_t_start_func_t_start(
         return ( action_replay_return_t const ) { EINVAL };
     }
 
+    action_replay_stoppable_t_state_t * const stoppable_state =
+        ACTION_REPLAY_DYNAMIC(
+            action_replay_stoppable_t_state_t *,
+            stoppable_state,
+            self
+        );
     action_replay_return_t result;
 
-    result = self->stoppable_state->worker->start_lock(
-        self->stoppable_state->worker
-    );
+    result = ACTION_REPLAY_DYNAMIC(
+        action_replay_worker_t_func_t,
+        start_lock,
+        stoppable_state->worker
+    )( stoppable_state->worker );
     switch( result.status )
     {
         case 0:
@@ -268,14 +321,14 @@ action_replay_stoppable_t_start_func_t_start(
             action_replay_log(
                 "%s: worker %p already started\n",
                 __func__,
-                self->stoppable_state->worker
+                stoppable_state->worker
             );
             return result;
         default:
             action_replay_log(
                 "%s: failure locking worker %p, errno = %d\n",
                 __func__,
-                self->stoppable_state->worker,
+                stoppable_state->worker,
                 result.status
             );
             return result;
@@ -291,7 +344,7 @@ action_replay_stoppable_t_start_func_t_start(
     }
 
     action_replay_return_t destroy =
-        action_replay_args_t_delete( self->stoppable_state->worker_state );
+        action_replay_args_t_delete( stoppable_state->worker_state );
 
     if( 0 != destroy.status )
     {
@@ -299,21 +352,19 @@ action_replay_stoppable_t_start_func_t_start(
         action_replay_args_t_delete( copy.args );
         goto handle_delete_old_state_error;
     }
-    self->stoppable_state->worker_state = copy.args;
-    OPA_store_ptr(
-        &( self->stoppable_state->worker_run_flag ),
-        &worker_continue
-    );
-    result = self->stoppable_state->worker->start_locked(
-        self->stoppable_state->worker,
-        self->stoppable_state
-    );
+    stoppable_state->worker_state = copy.args;
+    OPA_store_ptr( &( stoppable_state->worker_run_flag ), &worker_continue );
+    result = ACTION_REPLAY_DYNAMIC(
+        action_replay_worker_t_start_func_t,
+        start_locked,
+        stoppable_state->worker
+    )( stoppable_state->worker, stoppable_state );
     if( 0 != result.status )
     {
         action_replay_log(
             "%s: failure starting worker %p\n",
             __func__,
-            self->stoppable_state->worker
+            stoppable_state->worker
         );
     }
 handle_delete_old_state_error:
@@ -324,10 +375,11 @@ handle_copy_state_error:
      * by adding complexity and stopping worker thread?
      */
     action_replay_args_t_delete( start_state );
-    self->stoppable_state->worker->start_unlock(
-        self->stoppable_state->worker,
-        ( 0 == result.status )
-    );
+    ACTION_REPLAY_DYNAMIC(
+        action_replay_worker_t_unlock_func_t,
+        start_unlock,
+        stoppable_state->worker
+    )( stoppable_state->worker, ( 0 == result.status ));
 
     return result;
 }
@@ -349,11 +401,19 @@ action_replay_stoppable_t_stop_func_t_stop(
         return ( action_replay_return_t const ) { EINVAL };
     }
 
+    action_replay_stoppable_t_state_t * const stoppable_state =
+        ACTION_REPLAY_DYNAMIC(
+            action_replay_stoppable_t_state_t *,
+            stoppable_state,
+            self
+        );
     action_replay_return_t result;
 
-    result = self->stoppable_state->worker->stop_lock(
-        self->stoppable_state->worker
-    );
+    result = ACTION_REPLAY_DYNAMIC(
+        action_replay_worker_t_func_t,
+        stop_lock,
+        stoppable_state->worker
+    )( stoppable_state->worker );
     switch( result.status )
     {
         case 0:
@@ -362,48 +422,47 @@ action_replay_stoppable_t_stop_func_t_stop(
             action_replay_log(
                 "%s: worker %p already stopped\n",
                 __func__,
-                self->stoppable_state->worker
+                stoppable_state->worker
             );
             return result;
         default:
             action_replay_log(
                 "%s: failure locking worker %p, errno = %d\n",
                 __func__,
-                self->stoppable_state->worker,
+                stoppable_state->worker,
                 result.status
             );
             return result;
     }
-    OPA_store_ptr(
-        &( self->stoppable_state->worker_run_flag ),
-        &worker_stop
-    );
-    result = self->stoppable_state->worker->stop_locked(
-        self->stoppable_state->worker
-    );
+    OPA_store_ptr( &( stoppable_state->worker_run_flag ), &worker_stop );
+    result = ACTION_REPLAY_DYNAMIC(
+        action_replay_worker_t_func_t,
+        stop_locked,
+        stoppable_state->worker
+    )( stoppable_state->worker );
     if( 0 != result.status )
     {
         action_replay_log(
             "%s: failure stopping worker %p\n",
             __func__,
-            self->stoppable_state->worker
+            stoppable_state->worker
         );
         goto handle_worker_stop_error;
     }
 
     action_replay_return_t destroy =
-        action_replay_args_t_delete( self->stoppable_state->worker_state );
+        action_replay_args_t_delete( stoppable_state->worker_state );
 
     if( 0 == ( result.status = destroy.status ))
     {
-        self->stoppable_state->worker_state =
-            action_replay_args_t_default_args();
+        stoppable_state->worker_state = action_replay_args_t_default_args();
     }
 handle_worker_stop_error:
-    self->stoppable_state->worker->stop_unlock(
-        self->stoppable_state->worker,
-        ( 0 == result.status )
-    );
+    ACTION_REPLAY_DYNAMIC(
+        action_replay_worker_t_unlock_func_t,
+        stop_unlock,
+        stoppable_state->worker
+    )( stoppable_state->worker, ( 0 == result.status ));
 
     return result;
 }
@@ -519,7 +578,7 @@ action_replay_stoppable_t_start_state
 action_replay_class_t const * action_replay_stoppable_t_class( void )
 {
     static action_replay_class_t_func_t const inheritance[] ={
-        action_replay_stateful_object_t_class,
+        action_replay_object_t_class,
         NULL
     };
     static action_replay_class_t const result =
@@ -528,6 +587,7 @@ action_replay_class_t const * action_replay_stoppable_t_class( void )
         action_replay_stoppable_t_constructor,
         action_replay_stoppable_t_destructor,
         action_replay_stoppable_t_copier,
+        action_replay_stoppable_t_reflector,
         inheritance
     };
 
