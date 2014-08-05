@@ -1,3 +1,21 @@
+commit 5b3010d5573f60987b9eb6b7507dafcad32a6c12
+Author: Mateusz Jemielity <matthew.jemielity@gmail.com>
+Date:   Mon Aug 4 20:48:14 2014 -0700
+
+    variable name changed because of a test
+
+commit daafd4a32dc80f44f233f48a6cc4bc7c1864fcb8
+Author: Mateusz Jemielity <matthew.jemielity@gmail.com>
+Date:   Mon Aug 4 14:44:22 2014 -0700
+
+    true multiple inheritance (finally working), by using ruidmentary reflection system
+
+commit 4f67e6b4d6c8316eecef2152c9d4fa11718f3fce
+Author: Mateusz Jemielity <m.jemielity@samsung.com>
+Date:   Fri Aug 1 16:14:25 2014 +0200
+
+    updated ChangeLog
+
 commit f935c095d1d7ac1ecbc1977ace4ad264cf40fd18
 Author: Mateusz Jemielity <m.jemielity@samsung.com>
 Date:   Fri Aug 1 16:13:57 2014 +0200
