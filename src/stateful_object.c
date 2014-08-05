@@ -200,7 +200,7 @@ action_replay_stateful_object_t_reflector(
 #define ACTION_REPLAY_CURRENT_CLASS action_replay_stateful_object_t
 #include "action_replay/reflection_preparation.h"
 
-    static action_replay_reflection_entry_t const map1[] =
+    static action_replay_reflection_entry_t const map[] =
 #include "action_replay/stateful_object.class"
 
 #undef ACTION_REPLAY_CLASS_DEFINITION
@@ -208,14 +208,14 @@ action_replay_stateful_object_t_reflector(
 #undef ACTION_REPLAY_CLASS_METHOD
 #undef ACTION_REPLAY_CURRENT_CLASS
 
-    static size_t const map_size1 =
-        sizeof( map1 ) / sizeof( action_replay_reflection_entry_t );
+    static size_t const map_size =
+        sizeof( map ) / sizeof( action_replay_reflection_entry_t );
 
     return action_replay_class_t_generic_reflector_logic(
         type,
         name,
-        map1,
-        map_size1
+        map,
+        map_size
     );
 }
 
