@@ -127,7 +127,8 @@ action_replay_is_type_internal(
     return false;
 }
 
-bool action_replay_is_type(
+bool
+action_replay_is_type(
     action_replay_object_t const * const restrict object,
     action_replay_class_t const * const restrict _class
 )
@@ -144,7 +145,7 @@ bool action_replay_is_type(
     return action_replay_is_type_internal( object->_class, _class );
 }
 
-void const *
+void *
 action_replay_dynamic_get(
     char const * const restrict type,
     char const * const restrict name,

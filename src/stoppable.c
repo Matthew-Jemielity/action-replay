@@ -58,6 +58,7 @@ action_replay_stoppable_t_state_t_new( void )
 
     action_replay_stoppable_t_state_t * const stoppable_state = result.state;
 
+    /*  we control creation, no reflection necessary */
     stoppable_state->worker = action_replay_new(
         action_replay_worker_t_class(),
         action_replay_worker_t_args( action_replay_stoppable_t_worker )
@@ -308,11 +309,7 @@ action_replay_stoppable_t_start_func_t_start(
         );
     action_replay_return_t result;
 
-    result = ACTION_REPLAY_DYNAMIC(
-        action_replay_worker_t_func_t,
-        start_lock,
-        stoppable_state->worker
-    )( stoppable_state->worker );
+    result = stoppable_state->worker->start_lock( stoppable_state->worker );
     switch( result.status )
     {
         case 0:
@@ -354,11 +351,10 @@ action_replay_stoppable_t_start_func_t_start(
     }
     stoppable_state->worker_state = copy.args;
     OPA_store_ptr( &( stoppable_state->worker_run_flag ), &worker_continue );
-    result = ACTION_REPLAY_DYNAMIC(
-        action_replay_worker_t_start_func_t,
-        start_locked,
-        stoppable_state->worker
-    )( stoppable_state->worker, stoppable_state );
+    result = stoppable_state->worker->start_locked(
+        stoppable_state->worker,
+        stoppable_state
+    );
     if( 0 != result.status )
     {
         action_replay_log(
@@ -375,11 +371,10 @@ handle_copy_state_error:
      * by adding complexity and stopping worker thread?
      */
     action_replay_args_t_delete( start_state );
-    ACTION_REPLAY_DYNAMIC(
-        action_replay_worker_t_unlock_func_t,
-        start_unlock,
-        stoppable_state->worker
-    )( stoppable_state->worker, ( 0 == result.status ));
+    stoppable_state->worker->start_unlock(
+        stoppable_state->worker,
+        ( 0 == result.status )
+    );
 
     return result;
 }
@@ -409,11 +404,7 @@ action_replay_stoppable_t_stop_func_t_stop(
         );
     action_replay_return_t result;
 
-    result = ACTION_REPLAY_DYNAMIC(
-        action_replay_worker_t_func_t,
-        stop_lock,
-        stoppable_state->worker
-    )( stoppable_state->worker );
+    result = stoppable_state->worker->stop_lock( stoppable_state->worker );
     switch( result.status )
     {
         case 0:
@@ -435,11 +426,7 @@ action_replay_stoppable_t_stop_func_t_stop(
             return result;
     }
     OPA_store_ptr( &( stoppable_state->worker_run_flag ), &worker_stop );
-    result = ACTION_REPLAY_DYNAMIC(
-        action_replay_worker_t_func_t,
-        stop_locked,
-        stoppable_state->worker
-    )( stoppable_state->worker );
+    result = stoppable_state->worker->stop_locked( stoppable_state->worker );
     if( 0 != result.status )
     {
         action_replay_log(
@@ -458,11 +445,10 @@ action_replay_stoppable_t_stop_func_t_stop(
         stoppable_state->worker_state = action_replay_args_t_default_args();
     }
 handle_worker_stop_error:
-    ACTION_REPLAY_DYNAMIC(
-        action_replay_worker_t_unlock_func_t,
-        stop_unlock,
-        stoppable_state->worker
-    )( stoppable_state->worker, ( 0 == result.status ));
+    stoppable_state->worker->stop_unlock(
+        stoppable_state->worker,
+        ( 0 == result.status )
+    );
 
     return result;
 }

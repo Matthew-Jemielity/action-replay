@@ -163,9 +163,39 @@ action_replay_log_t_copier(
     void const * const restrict original
 )
 {
-    ( void ) copy;
-    ( void ) original;
-    return ( action_replay_return_t const ) { ENOSYS };
+    action_replay_args_t_return_t const args =
+        ACTION_REPLAY_DYNAMIC(
+            action_replay_stateful_object_t_args_func_t,
+            args,
+            original
+        )( original );
+
+    if( 0 != args.status )
+    {
+        return ( action_replay_return_t const ) { args.status };
+    }
+
+    action_replay_return_t const result =
+        action_replay_log_t_internal(
+            COPY,
+            copy,
+            original,
+            args.args,
+            ACTION_REPLAY_DYNAMIC(
+                action_replay_log_t_func_t,
+                log,
+                original
+            )
+        );
+
+    /* 
+     * error here will result in unhandled memory leak
+     * is it better to leave it (non-critical) or handle it
+     * by adding complexity and deleting the copy?
+     */
+    action_replay_args_t_delete( args.args );
+
+    return result;
 }
 
 static action_replay_reflector_return_t

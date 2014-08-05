@@ -65,6 +65,7 @@ action_replay_workqueue_t_state_t_new( void )
 
     action_replay_workqueue_t_state_t * const workqueue_state = result.state;
 
+    /*  we control creation, no reflection necessary */
     workqueue_state->worker = action_replay_new(
         action_replay_worker_t_class(),
         action_replay_worker_t_args( action_replay_workqueue_t_process_queue )
@@ -443,9 +444,7 @@ action_replay_workqueue_t_func_t_finish(
         );
     action_replay_return_t result;
 
-    result = workqueue_state->worker->stop_lock(
-        workqueue_state->worker
-    );
+    result = workqueue_state->worker->stop_lock( workqueue_state->worker );
     switch( result.status )
     {
         case 0:

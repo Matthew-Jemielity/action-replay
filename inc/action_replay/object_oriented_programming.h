@@ -24,7 +24,7 @@ action_replay_is_type(
     action_replay_class_t const * const restrict _class
 );
 /* use via macro below */
-void const *
+void *
 action_replay_dynamic_get(
     char const * const restrict type,
     char const * const restrict name,

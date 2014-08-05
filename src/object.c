@@ -53,7 +53,7 @@ action_replay_object_t_reflector(
 #undef ACTION_REPLAY_CLASS_DEFINITION
 #undef ACTION_REPLAY_CLASS_FIELD
 #undef ACTION_REPLAY_CLASS_METHOD
-#undef ATION_REPLAY_CURRENT_CLASS
+#undef ACTION_REPLAY_CURRENT_CLASS
 
     static size_t const map_size =
         sizeof( map ) / sizeof( action_replay_reflection_entry_t );

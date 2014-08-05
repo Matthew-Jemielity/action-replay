@@ -422,6 +422,7 @@ action_replay_recorder_t_start_func_t_start(
     action_replay_recorder_t_start_state_t * const recorder_start_state =
         start_state.state;
 
+    /* since we control creation, reflection isn't necessary */
     worker_state->event_time = action_replay_new(
         action_replay_time_t_class(),
         action_replay_time_t_args( action_replay_time_t_from_time_t( NULL ))
@@ -685,8 +686,7 @@ action_replay_recorder_t_worker_safe_output_write(
         ", \"type\": %hu, \"code\": %hu, \"value\": %d }";
     action_replay_return_t result;
 
-    result =
-        ACTION_REPLAY_DYNAMIC( action_replay_time_t_func_t, set, event_time )(
+    result = event_time->set(
             event_time,
             action_replay_time_t_from_timeval( event.time )
         );
@@ -694,8 +694,7 @@ action_replay_recorder_t_worker_safe_output_write(
     {
         return result.status;
     }
-    result =
-        ACTION_REPLAY_DYNAMIC( action_replay_time_t_func_t, sub, event_time )(
+    result = event_time->sub(
             event_time,
             action_replay_time_t_from_time_t( zero_time )
         );
@@ -714,11 +713,7 @@ action_replay_recorder_t_worker_safe_output_write(
     }
 
     action_replay_time_t_return_t const conversion_result =
-        ACTION_REPLAY_DYNAMIC(
-            action_replay_time_t_conversion_func_t,
-            nanoseconds,
-            event_time
-        )( event_time );
+        event_time->nanoseconds( event_time );
 
     if( 0 != conversion_result.status )
     {

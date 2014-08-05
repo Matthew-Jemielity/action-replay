@@ -116,6 +116,7 @@ action_replay_player_t_state_t_new(
     action_replay_player_t_args_t * const player_args = args.state;
     action_replay_player_t_state_t * const player_state = result.state;
 
+    /* we control creation, so no reflection necessary */
     player_state->queue = action_replay_new(
         action_replay_workqueue_t_class(),
         action_replay_workqueue_t_args()
@@ -473,11 +474,7 @@ action_replay_player_t_start_func_t_start(
 
     action_replay_return_t result;
 
-    result = ACTION_REPLAY_DYNAMIC(
-            action_replay_workqueue_t_func_t,
-            start,
-            player_state->queue
-        )( player_state->queue );
+    result = player_state->queue->start( player_state->queue );
     if( 0 != result.status )
     {
         action_replay_log(
@@ -586,11 +583,7 @@ action_replay_player_t_stop_func_t_stop(
     action_replay_return_t const result =
         action_replay_player_t_stop_func_t_internal(
             self,
-            ACTION_REPLAY_DYNAMIC(
-                action_replay_workqueue_t_func_t,
-                stop,
-                player_state->queue
-            )
+            player_state->queue->stop
         );
 
     /* at most one thread can succeed */
@@ -652,11 +645,7 @@ action_replay_player_t_join_func_t_join(
 
     return action_replay_player_t_stop_func_t_internal(
         ( void * const ) self,
-        ACTION_REPLAY_DYNAMIC(
-            action_replay_workqueue_t_func_t,
-            join,
-            player_state->queue
-        )
+        player_state->queue->join
     );
 }
 
@@ -721,15 +710,11 @@ static action_replay_error_t action_replay_player_t_worker( void * state )
     }
 
     action_replay_return_t const put_result =
-        ACTION_REPLAY_DYNAMIC(
-            action_replay_workqueue_t_put_func_t,
-            put,
-            worker_state->player_state->queue
-        )(
-            worker_state->player_state->queue,
-            action_replay_player_t_process_item,
-            parse_state
-        );
+            worker_state->player_state->queue->put(
+                worker_state->player_state->queue,
+                action_replay_player_t_process_item,
+                parse_state
+            );
     
     if( 0 == put_result.status )
     {
