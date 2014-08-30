@@ -2,7 +2,7 @@
 # Process this file with autoconf to produce a configure script.
 
 AC_PREREQ([2.64])
-AC_INIT([action-replay], [1.1], [matthew.jemielity@gmail.com])
+AC_INIT([action-replay], [1.2], [matthew.jemielity@gmail.com])
 AC_CONFIG_SRCDIR([src/object_oriented_programming.c])
 AC_CONFIG_FILES([Makefile])
 

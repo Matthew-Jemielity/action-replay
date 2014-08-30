@@ -1,3 +1,27 @@
+commit 4890f046d46d5438ec33a594e7051fdf07d209bc
+Author: Mateusz Jemielity <matthew.jemielity@gmail.com>
+Date:   Sat Aug 30 13:06:35 2014 -0700
+
+    time class divided into converter and operator classes; logs upgraded to better form; bigfixes
+
+commit 05cc9599d7e685f0f93f0beef34be118b8628114
+Author: Mateusz Jemielity <m.jemielity@samsung.com>
+Date:   Tue Aug 5 11:51:17 2014 +0200
+
+    small fixes for prettier code; removed use of reflection for objects known to be of certain type
+
+commit 14c69f40138f613eeee0b34c6b8ebb565e6c1d50
+Author: Mateusz Jemielity <matthew.jemielity@gmail.com>
+Date:   Mon Aug 4 20:50:59 2014 -0700
+
+    officially v1.1
+
+commit 755c6ba35c96ab9ae479974076809bb6c8206018
+Author: Mateusz Jemielity <matthew.jemielity@gmail.com>
+Date:   Mon Aug 4 20:48:48 2014 -0700
+
+    v1.1; updated ChangeLog
+
 commit 5b3010d5573f60987b9eb6b7507dafcad32a6c12
 Author: Mateusz Jemielity <matthew.jemielity@gmail.com>
 Date:   Mon Aug 4 20:48:14 2014 -0700
