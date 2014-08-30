@@ -6,39 +6,32 @@
 # include <action_replay/class_preparation.h>
 # include <action_replay/object.h>
 # include <action_replay/return.h>
-# include <action_replay/stdint.h>
-# include <sys/time.h>
-# include <time.h>
+# include <action_replay/time_converter.h>
 
 ACTION_REPLAY_CLASS_DECLARATION( action_replay_time_t );
 typedef struct action_replay_time_t_state_t action_replay_time_t_state_t;
 typedef action_replay_return_t
 ( * action_replay_time_t_func_t )(
-    action_replay_time_t * const self,
-    struct timespec const value
+    action_replay_time_t * const restrict self,
+    action_replay_time_converter_t const * const restrict value
 );
 typedef struct
 {
 # include <action_replay/return.interface>
-    uint64_t value;
+    action_replay_time_converter_t * converter;
 }
-action_replay_time_t_return_t;
-typedef action_replay_time_t_return_t
-( * action_replay_time_t_conversion_func_t )(
+action_replay_time_t_converter_return_t;
+typedef action_replay_time_t_converter_return_t
+( * action_replay_time_t_converter_func_t )(
     action_replay_time_t const * const self
 );
 
 # include <action_replay/time.class>
 
 action_replay_class_t const * action_replay_time_t_class( void );
-action_replay_args_t action_replay_time_t_args( struct timespec const value );
-
-struct timespec action_replay_time_t_now( void );
-struct timespec
-action_replay_time_t_from_timeval( struct timeval const value );
-struct timespec
-action_replay_time_t_from_time_t( action_replay_time_t const * const value );
-struct timespec action_replay_time_t_from_nanoseconds( uint64_t const value );
+action_replay_args_t action_replay_time_t_args(
+    action_replay_time_converter_t const * const converter
+);
 
 #endif /* ACTION_REPLAY_TIME_H__ */
 

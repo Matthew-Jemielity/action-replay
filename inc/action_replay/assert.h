@@ -12,8 +12,7 @@
 #    include <stdio.h>
 #    include <stdlib.h>
 #    define assert( condition ) \
-    do \
-    { \
+    do { \
         if( ! ( condition )) \
         { \
             fprintf( \

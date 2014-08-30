@@ -10,22 +10,19 @@
 # include <action_replay/stdbool.h>
 # include <action_replay/stdint.h>
 
-void *
-action_replay_new(
+void * action_replay_new(
     action_replay_class_t const * const _class,
     action_replay_args_t const args
 );
 action_replay_error_t
 action_replay_delete( action_replay_object_t * const object );
 void * action_replay_copy( action_replay_object_t const * const object );
-bool
-action_replay_is_type(
+bool action_replay_is_type(
     action_replay_object_t const * const restrict object,
     action_replay_class_t const * const restrict _class
 );
 /* use via macro below */
-void *
-action_replay_dynamic_get(
+void const * action_replay_dynamic_get(
     char const * const restrict type,
     char const * const restrict name,
     void const * const restrict pointer

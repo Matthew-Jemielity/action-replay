@@ -35,8 +35,8 @@ AC_CHECK_LIB(jsmn, jsmn_init, [], [AC_MSG_ERROR([cannot find jsmn shared library
 AC_CHECK_LIB(opa, OPA_Queue_init, [], [AC_MSG_ERROR([cannot find OPA (Open Portable Atomics) shared library])])
 
 # Checks for header files.
-AC_CHECK_HEADERS([assert.h inttypes.h limits.h stdbool.h stddef.h stdint.h sys/types.h])
-AC_CHECK_HEADERS([errno.h fcntl.h jsmn.h linux/input.h linux/types.h opa_primitives.h opa_queue.h poll.h pthread.h stdarg.h stdio.h stdlib.h string.h sys/time.h time.h unistd.h], [], [AC_MSG_ERROR([cannot find or include prerequisite header])])
+AC_CHECK_HEADERS([assert.h inttypes.h limits.h stdbool.h stddef.h stdint.h sys/types.h time.h])
+AC_CHECK_HEADERS([errno.h fcntl.h jsmn.h linux/input.h linux/types.h opa_primitives.h opa_queue.h poll.h pthread.h stdarg.h stdio.h stdlib.h string.h sys/time.h unistd.h], [], [AC_MSG_ERROR([cannot find or include prerequisite header])])
 
 # Checks for library functions.
 AC_CHECK_FUNCS([clock_gettime])

@@ -6,9 +6,17 @@
 
 int main()
 {
+    action_replay_time_converter_t * converter =
+        action_replay_new(
+            action_replay_time_converter_t_class(),
+            action_replay_time_converter_t_args(
+                action_replay_time_converter_t_now()
+            )
+        );
+    assert( NULL != converter );
     action_replay_time_t * const time = action_replay_new(
         action_replay_time_t_class(),
-        action_replay_time_t_args( action_replay_time_t_now() )
+        action_replay_time_t_args( converter )
     );
     action_replay_stateful_object_t * const stateful_object =
         action_replay_new(
@@ -41,6 +49,7 @@ int main()
         ( void * ) stateful_object,
         action_replay_object_t_class()
     ));
+    assert( 0 == action_replay_delete( ( void * ) converter ));
     assert( 0 == action_replay_delete( ( void * ) time ));
     assert( 0 == action_replay_delete( ( void * ) stateful_object ));
     return 0;

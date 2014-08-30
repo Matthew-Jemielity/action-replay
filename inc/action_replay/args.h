@@ -9,15 +9,13 @@ typedef action_replay_return_t
 typedef action_replay_stateful_return_t
 ( * action_replay_args_t_copier_t )( void * const state );
 
-typedef struct
-{
+typedef struct {
     void * state;
     action_replay_args_t_destructor_t destructor;
     action_replay_args_t_copier_t copier;
-}
-action_replay_args_t;
+} action_replay_args_t;
 
- /* do nothing */
+/* do nothing */
 action_replay_return_t
 action_replay_args_t_default_destructor( void * const state);
 /* return unmodified state */
@@ -26,12 +24,10 @@ action_replay_args_t_default_copier( void * const state );
 action_replay_return_t
 action_replay_args_t_delete( action_replay_args_t args );
 
-typedef struct
-{
+typedef struct {
 # include <action_replay/return.interface>
     action_replay_args_t args;
-}
-action_replay_args_t_return_t;
+} action_replay_args_t_return_t;
 
 action_replay_args_t_return_t
 action_replay_args_t_copy( action_replay_args_t const args );

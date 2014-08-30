@@ -6,20 +6,5 @@ ACTION_REPLAY_CLASS_FIELD( action_replay_time_t_state_t *, time_state )
 ACTION_REPLAY_CLASS_METHOD( action_replay_time_t_func_t, set )
 ACTION_REPLAY_CLASS_METHOD( action_replay_time_t_func_t, add )
 ACTION_REPLAY_CLASS_METHOD( action_replay_time_t_func_t, sub )
-ACTION_REPLAY_CLASS_METHOD(
-    action_replay_time_t_conversion_func_t,
-    nanoseconds
-)
-ACTION_REPLAY_CLASS_METHOD(
-    action_replay_time_t_conversion_func_t,
-    microseconds
-)
-ACTION_REPLAY_CLASS_METHOD(
-    action_replay_time_t_conversion_func_t,
-    milliseconds
-)
-ACTION_REPLAY_CLASS_METHOD(
-    action_replay_time_t_conversion_func_t,
-    seconds
-)
+ACTION_REPLAY_CLASS_METHOD( action_replay_time_t_converter_func_t, converter )
 

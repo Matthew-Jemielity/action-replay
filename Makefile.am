@@ -14,6 +14,7 @@ MAIN_SOURCES = \
     src/stoppable.c \
     src/strndup.c \
     src/time.c \
+    src/time_converter.c \
     src/worker.c \
     src/workqueue.c
 

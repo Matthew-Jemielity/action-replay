@@ -48,9 +48,7 @@ static inline void print_replay_options( void )
 }
 
 static inline void print_help_options( void )
-{
-    puts( "\t-h, --help\n\t\tdisplay help" );
-}
+{ puts( "\t-h, --help\n\t\tdisplay help" ); }
 
 static inline int return_full_help( void )
 {
@@ -64,22 +62,17 @@ static inline int return_full_help( void )
 
 static inline bool is_help( char const * const arg )
 {
-    return
-    (
+    return (
         ( 0 == strncmp( arg, "-h\0", 3 ))
         || ( 0 == strncmp( arg, "--help\0", 7 ))
     );
 }
 
 static inline bool is_io( char const * const arg )
-{
-    return ( 0 == strncmp( arg, "-io\0", 4 ));
-}
+{ return ( 0 == strncmp( arg, "-io\0", 4 )); }
 
 static inline bool is_stop( void )
-{
-    return ( 0 == OPA_load_int( &run_flag ));
-}
+{ return ( 0 == OPA_load_int( &run_flag )); }
 
 typedef void ( * record_stop_func_t )( unsigned long int const arg );
 
@@ -90,11 +83,7 @@ static int record_internal(
     unsigned long int const stopper_arg
 )
 {
-    if
-    (
-        ( 0 != ( argc % 3 ))
-        || ( is_help( args[ 0 ] ))
-    )
+    if(( 0 != ( argc % 3 )) || ( is_help( args[ 0 ] )))
     {
         puts( PROGRAM_NAME );
         print_record_options();
@@ -108,14 +97,10 @@ static int record_internal(
 
     if( NULL == recorders )
     {
-        action_replay_log(
-            "%s: failure allocating recorders list\n",
-            __func__
-        );
+        LOG( "failure allocating recorders list" );
         return EXIT_FAILURE;
     }
-    for
-    (
+    for(
         unsigned int i = 0, rec = 0;
         ( i < argc ) && ( rec < rec_count );
         i += 3, ++rec
@@ -123,64 +108,57 @@ static int record_internal(
     {
         if( is_stop() )
         {
-            action_replay_log(
-                "%s: ordered to stop through SIGINT at %d\n",
-                __func__,
-                __LINE__
-            );
+            LOG( "ordered to stop through SIGINT" );
             goto handle_sigint_during_recorder_creation;
         }
         if( ! is_io( args[ i ] ))
         {
-            action_replay_log(
-                "%s: failure parsing program option: %s\n",
-                __func__,
-                args[ i ]
-            );
+            LOG( "failure parsing program option: %s", args[ i ] );
             puts( PROGRAM_NAME );
             print_record_options();
             goto handle_recorder_option_parsing_error;
         }
         recorders[ rec ] = action_replay_new(
             action_replay_recorder_t_class(),
-            action_replay_recorder_t_args(
-                args[ i + 1 ],
-                args[ i + 2 ]
-            )
+            action_replay_recorder_t_args( args[ i + 1 ], args[ i + 2 ] )
         );
         if( NULL == recorders[ rec ] )
         {
-            action_replay_log(
-                "%s: failure allocating recorder #%d, bailing out\n",
-                __func__,
-                i
-            );
+            LOG( "failure allocating recorder #%d, bailing out", i );
             goto handle_recorder_allocation_error;
         }
     }
 
+    action_replay_time_converter_t * const now =
+        action_replay_new(
+            action_replay_time_converter_t_class(),
+            action_replay_time_converter_t_args(
+                action_replay_time_converter_t_now()
+            )
+        );
+
+    if( NULL == now )
+    {
+        LOG( "failure allocating time converter" );
+        goto handle_time_converter_allocation_error;
+    }
+
     action_replay_time_t * const zero_time = action_replay_new(
         action_replay_time_t_class(),
-        action_replay_time_t_args( action_replay_time_t_now() )
+        action_replay_time_t_args( now )
     );
 
+    action_replay_delete( ( void * ) now );
     if( NULL == zero_time )
     {
-        action_replay_log(
-            "%s: failure allocating zero_time object\n",
-            __func__
-        );
+        LOG( "failure allocating zero_time object" );
         goto handle_zero_time_allocation_error;
     }
     for( unsigned int i = 0; i < rec_count; ++i )
     {
         if( is_stop() )
         {
-            action_replay_log(
-                "%s: ordered to stop through SIGINT at %d\n",
-                __func__,
-                __LINE__
-            );
+            LOG( "ordered to stop through SIGINT" );
             goto handle_sigint_during_recorder_starting;
         }
         if( 0 != recorders[ i ]->start(
@@ -188,11 +166,7 @@ static int record_internal(
             action_replay_recorder_t_start_state( zero_time )
         ).status )
         {
-            action_replay_log(
-                "%s: failure starting recorder #%d, bailing out\n",
-                __func__,
-                i
-            );
+            LOG( "failure starting recorder #%d, bailing out", i );
             goto handle_recorder_start_error;
         }
     }
@@ -201,9 +175,7 @@ static int record_internal(
     stopper( stopper_arg );
 
     for( unsigned int i = 0; i < rec_count; ++i )
-    {
-        action_replay_delete( ( void * ) recorders[ i ] );
-    }
+    { action_replay_delete( ( void * ) recorders[ i ] ); }
     free( recorders );
     action_replay_delete( ( void * ) zero_time );
     return EXIT_SUCCESS;
@@ -211,13 +183,12 @@ static int record_internal(
 handle_recorder_start_error:
 handle_sigint_during_recorder_starting:
 handle_zero_time_allocation_error:
+handle_time_converter_allocation_error:
 handle_recorder_allocation_error:
 handle_recorder_option_parsing_error:
 handle_sigint_during_recorder_creation:
     for( unsigned int i = 0; i < rec_count; ++i )
-    {
-        action_replay_delete( ( void * ) recorders[ i ] );
-    }
+    { action_replay_delete( ( void * ) recorders[ i ] ); }
     free( recorders );
     return EXIT_FAILURE;
 }
@@ -229,10 +200,7 @@ static inline void default_record_stop( unsigned long int const arg )
     while( true )
     {
         sleep( 1 );
-        if( is_stop() )
-        {
-            break;
-        }
+        if( is_stop() ) { break; }
     }
     puts( "Cleaning up" );
 }
@@ -245,10 +213,7 @@ static inline void timed_record_stop( unsigned long int const arg )
     {
         ++i;
         sleep( 1 );
-        if( is_stop() )
-        {
-            break;
-        }
+        if( is_stop() ) { break; }
     }
 }
 
@@ -276,8 +241,7 @@ static int record( unsigned int argc, char ** args )
     record_stop_func_t stopper = default_record_stop;
     unsigned long int stopper_arg = 0;
 
-    if
-    (
+    if(
         ( 0 == strncmp( args[ 0 ], "-t\0", 3 ))
         && ( 0 != ( stopper_arg = strtoul( args[ 1 ], NULL, 10 )))
     )
@@ -287,21 +251,12 @@ static int record( unsigned int argc, char ** args )
         stopper = timed_record_stop;
     }
 
-    return record_internal(
-        argc,
-        args,
-        stopper,
-        stopper_arg
-    );
+    return record_internal( argc, args, stopper, stopper_arg );
 }
 
 static int replay( unsigned int argc, char ** args )
 {
-    if
-    (
-        ( 1 > argc )
-        || ( is_help( args[ 0 ] ))
-    )
+    if(( 1 > argc ) || ( is_help( args[ 0 ] )))
     {
         puts( PROGRAM_NAME );
         print_replay_options();
@@ -313,7 +268,7 @@ static int replay( unsigned int argc, char ** args )
 
     if( NULL == players )
     {
-        action_replay_log( "%s: failure allocating players list\n", __func__ );
+        LOG( "failure allocating players list" );
         return EXIT_FAILURE;
     }
     for( unsigned int i = 0; i < argc; ++i )
@@ -324,23 +279,34 @@ static int replay( unsigned int argc, char ** args )
         );
         if( NULL == players[ i ] )
         {
-            action_replay_log(
-                "%s: failure allocating player #%d, bailing out\n",
-                __func__,
-                i
-            );
+            LOG( "failure allocating player #%d, bailing out", i );
             goto handle_player_allocation_error;
         }
     }
 
+    action_replay_time_converter_t * const now =
+        action_replay_new(
+            action_replay_time_converter_t_class(),
+            action_replay_time_converter_t_args(
+                action_replay_time_converter_t_now()
+            )
+        );
+
+    if( NULL == now )
+    {
+        LOG( "failure allocating time converter" );
+        goto handle_time_converter_allocation_error;
+    }
+
     action_replay_time_t * const zero_time = action_replay_new(
         action_replay_time_t_class(),
-        action_replay_time_t_args( action_replay_time_t_now() )
+        action_replay_time_t_args( now )
     );
 
+    action_replay_delete( ( void * ) now );
     if( NULL == zero_time )
     {
-        action_replay_log( "%s: failure allocating zero_time object\n", __func__ );
+        LOG( "failure allocating zero_time object" );
         goto handle_zero_time_allocation_error;
     }
     for( unsigned int i = 0; i < argc; ++i )
@@ -350,28 +316,16 @@ static int replay( unsigned int argc, char ** args )
             action_replay_player_t_start_state( zero_time )
         ).status )
         {
-            action_replay_log(
-                "%s: failure starting player #%d, bailing out\n",
-                __func__,
-                i
-            );
+            LOG( "failure starting player #%d, bailing out", i );
             goto handle_player_start_error;
         }
     }
     for( unsigned int i = 0; i < argc; ++i )
-    {
-        players[ i ]->join( players[ i ] );
-    }
+    { players[ i ]->join( players[ i ] ); }
     for( unsigned int i = 0; i < argc; ++i )
     {
         if( 0 != action_replay_delete( ( void * ) players[ i ] ))
-        {
-            action_replay_log(
-                "%s: failure deleting player #%d\n",
-                __func__,
-                i
-            );
-        }
+        { LOG( "failure deleting player #%d", i ); }
     }
     free( players );
     action_replay_delete( ( void * ) zero_time );
@@ -380,39 +334,23 @@ static int replay( unsigned int argc, char ** args )
 handle_player_start_error:
     action_replay_delete( ( void * ) zero_time );
 handle_zero_time_allocation_error:
+handle_time_converter_allocation_error:
 handle_player_allocation_error:
     for( unsigned int i = 0; i < argc; ++i )
-    {
-        action_replay_delete( ( void * ) players[ i ] );
-    }
+    { action_replay_delete( ( void * ) players[ i ] ); }
     free( players );
     return EXIT_FAILURE;
 }
 
 static inline FILE * fopen_debug_option( char const * const arg )
 {
-    if( 0 == strncmp( arg, "stdout\0", 7 ))
-    {
-        return stdout;
-    }
-    else if( 0 == strncmp( arg, "stderr\0", 7 ))
-    {
-        return stderr;
-    }
+    if( 0 == strncmp( arg, "stdout\0", 7 )) { return stdout; }
+    else if( 0 == strncmp( arg, "stderr\0", 7 )) { return stderr; }
     return fopen( arg, "a" );
 }
 
 static inline void fclose_debug_option( FILE * arg )
-{
-    if
-    (
-        ( stdout != arg )
-        && ( stderr != arg )
-    )
-    {
-        fclose( arg );
-    }
-}
+{ if (( stdout != arg ) && ( stderr != arg )) { fclose( arg ); } }
 
 static inline int default_return( unsigned int argc, char ** args )
 {
@@ -425,32 +363,17 @@ typedef int ( * option_func_t )( unsigned int argc, char ** args );
 
 static int debug( unsigned int argc, char ** args )
 {
-    if( 2 > argc )
-    {
-        return return_full_help();
-    }
+    if( 2 > argc ) { return return_full_help(); }
 
     option_func_t func = default_return;
 
-    if( is_help( args[ 1 ] ))
-    {
-        return return_full_help();
-    }
-    else if( 0 == strncmp( args[ 1 ], "record\0", 7 ))
-    {
-        func = record;
-    }
-    else if( 0 == strncmp( args[ 1 ], "replay\0", 7 ))
-    {
-        func = replay;
-    }
+    if( is_help( args[ 1 ] )) { return return_full_help(); }
+    else if( 0 == strncmp( args[ 1 ], "record\0", 7 )) { func = record; }
+    else if( 0 == strncmp( args[ 1 ], "replay\0", 7 )) { func = replay; }
 
     FILE * log = fopen_debug_option( args[ 0 ] );
 
-    if( NULL == log )
-    {
-        return EXIT_FAILURE;
-    }
+    if( NULL == log ) { return EXIT_FAILURE; }
 
     if( 0 != action_replay_log_init( log ).status )
     {
@@ -466,29 +389,14 @@ static int debug( unsigned int argc, char ** args )
 
 int main( int argc, char ** args )
 {
-    if( 2 > argc )
-    {
-        return return_full_help();
-    }
+    if( 2 > argc ) { return return_full_help(); }
 
     option_func_t func = default_return;
 
-    if( is_help( args[ 1 ] ))
-    {
-        return return_full_help();
-    }
-    else if( 0 == strncmp( args[ 1 ], "--debug\0", 8 ))
-    {
-        func = debug;
-    }
-    else if( 0 == strncmp( args[ 1 ], "record\0", 7 ))
-    {
-        func = record;
-    }
-    else if( 0 == strncmp( args[ 1 ], "replay\0", 7 ))
-    {
-        func = replay;
-    }
+    if( is_help( args[ 1 ] )) { return return_full_help(); }
+    else if( 0 == strncmp( args[ 1 ], "--debug\0", 8 )) { func = debug; }
+    else if( 0 == strncmp( args[ 1 ], "record\0", 7 )) { func = record; }
+    else if( 0 == strncmp( args[ 1 ], "replay\0", 7 )) { func = replay; }
 
     /* skip args[ 0 ] - program name, args[ 1 ] - option */
     return func( argc - 2, args + 2 );

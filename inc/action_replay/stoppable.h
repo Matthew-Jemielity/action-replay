@@ -11,13 +11,11 @@
 ACTION_REPLAY_CLASS_DECLARATION( action_replay_stoppable_t );
 typedef struct action_replay_stoppable_t_state_t
     action_replay_stoppable_t_state_t;
-typedef action_replay_return_t
-( * action_replay_stoppable_t_start_func_t )(
+typedef action_replay_return_t ( * action_replay_stoppable_t_start_func_t )(
     action_replay_stoppable_t * const self,
     action_replay_args_t const start_state
 );
-typedef action_replay_return_t
-( * action_replay_stoppable_t_stop_func_t )(
+typedef action_replay_return_t ( * action_replay_stoppable_t_stop_func_t )(
     action_replay_stoppable_t * const self
 );
 
@@ -26,8 +24,7 @@ typedef action_replay_return_t
 typedef action_replay_error_t
 ( * action_replay_stoppable_t_loop_iteration_func_t )( void * state );
 
-action_replay_args_t
-action_replay_stoppable_t_start_state(
+action_replay_args_t action_replay_stoppable_t_start_state(
     action_replay_stoppable_t_loop_iteration_func_t const func,
     void * state
 );

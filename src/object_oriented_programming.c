@@ -10,8 +10,7 @@
 #include <errno.h>
 #include <stdlib.h>
 
-void *
-action_replay_new(
+void * action_replay_new(
     action_replay_class_t const * const _class,
     action_replay_args_t const args
 )
@@ -52,18 +51,12 @@ action_replay_new(
 action_replay_error_t
 action_replay_delete( action_replay_object_t * const object )
 {
-    if( NULL == object )
-    {
-        return 0;
-    }
+    if( NULL == object ) { return 0; }
 
     action_replay_error_t const result =
         object->_class->destructor( object ).status;
 
-    if( 0 == result )
-    {
-        free( object );
-    }
+    if( 0 == result ) { free( object ); }
 
     return result;
 }
@@ -100,16 +93,12 @@ void * action_replay_copy( action_replay_object_t const * const object )
 }
 
 /* not tail-recursive */
-static bool
-action_replay_is_type_internal(
+static bool action_replay_is_type_internal(
     action_replay_class_t const * const object_class,
     action_replay_class_t const * const type_class
 )
 {
-    if( object_class == type_class )
-    {
-        return true;
-    }
+    if( object_class == type_class ) { return true; }
 
     action_replay_class_t_func_t const * const parent_list =
         object_class->inheritance;
@@ -119,34 +108,23 @@ action_replay_is_type_internal(
         action_replay_class_t_func_t const parent = parent_list[ index ];
 
         if( action_replay_is_type_internal( parent(), type_class ))
-        {
-            return true;
-        }
+        { return true; }
     }
 
     return false;
 }
 
-bool
-action_replay_is_type(
+bool action_replay_is_type(
     action_replay_object_t const * const restrict object,
     action_replay_class_t const * const restrict _class
 )
 {
-    if
-    (
-        ( NULL == object )
-        || ( NULL == _class )
-    )
-    {
-        return false;
-    }
+    if(( NULL == object ) || ( NULL == _class )) { return false; }
 
     return action_replay_is_type_internal( object->_class, _class );
 }
 
-void *
-action_replay_dynamic_get(
+void const * action_replay_dynamic_get(
     char const * const restrict type,
     char const * const restrict name,
     void const * const restrict pointer

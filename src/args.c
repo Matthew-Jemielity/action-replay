@@ -13,15 +13,11 @@ action_replay_args_t_default_destructor( void * const state )
 
 action_replay_stateful_return_t
 action_replay_args_t_default_copier( void * const state )
-{
-    return ( action_replay_stateful_return_t const ) { 0, state };
-}
+{ return ( action_replay_stateful_return_t const ) { 0, state }; }
  
 action_replay_return_t
 action_replay_args_t_delete( action_replay_args_t args )
-{
-    return args.destructor( args.state );
-}
+{ return args.destructor( args.state ); }
 
 action_replay_args_t_return_t
 action_replay_args_t_copy( action_replay_args_t const args )

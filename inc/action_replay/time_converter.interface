@@ -1,0 +1,37 @@
+#ifndef ACTION_REPLAY_TIME_CONVERTER_H__
+# error "Add #include <action_replay/time_converter.h>"
+#endif /* ACTION_REPLAY_TIME_CONVERTER_H__ */
+
+ACTION_REPLAY_CLASS_FIELD(
+    action_replay_time_converter_t_state_t *,
+    time_converter_state
+)
+ACTION_REPLAY_CLASS_METHOD(
+    action_replay_time_converter_t_func_t,
+    nanoseconds
+)
+ACTION_REPLAY_CLASS_METHOD(
+    action_replay_time_converter_t_func_t,
+    microseconds
+)
+ACTION_REPLAY_CLASS_METHOD(
+    action_replay_time_converter_t_func_t,
+    milliseconds
+)
+ACTION_REPLAY_CLASS_METHOD(
+    action_replay_time_converter_t_func_t,
+    seconds
+)
+#if HAVE_TIME_H
+ACTION_REPLAY_CLASS_METHOD(
+    action_replay_time_converter_t_timespec_func_t,
+    timespec
+)
+#endif /* HAVE_TIME_H */
+#if HAVE_SYS_TIME_H
+ACTION_REPLAY_CLASS_METHOD(
+    action_replay_time_converter_t_timeval_func_t,
+    timeval
+)
+#endif /* HAVE_SYS_TIME_H */
+

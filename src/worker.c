@@ -2,7 +2,6 @@
 #include "action_replay/class.h"
 #include "action_replay/error.h"
 #include "action_replay/log.h"
-#include "action_replay/macros.h"
 #include "action_replay/object_oriented_programming.h"
 #include "action_replay/object_oriented_programming_super.h"
 #include "action_replay/return.h"
@@ -15,11 +14,9 @@
 #include <pthread.h>
 #include <stdlib.h>
 
-typedef struct
-{
+typedef struct {
     action_replay_worker_t_thread_func_t thread_function;
-}
-action_replay_worker_t_args_t;
+} action_replay_worker_t_args_t;
 
 struct action_replay_worker_t_state_t
 {
@@ -28,23 +25,19 @@ struct action_replay_worker_t_state_t
     pthread_t worker;
 };
 
-typedef enum
-{
+typedef enum {
     WORKER_STARTING,
     WORKER_STARTED,
     WORKER_STOPPING,
     WORKER_STOPPED
-}
-action_replay_worker_t_worker_status_t;
+} action_replay_worker_t_worker_status_t;
 
-static action_replay_worker_t_worker_status_t
-    worker_starting = WORKER_STARTING;
-static action_replay_worker_t_worker_status_t
-    worker_started = WORKER_STARTED;
-static action_replay_worker_t_worker_status_t
-    worker_stopping = WORKER_STOPPING;
-static action_replay_worker_t_worker_status_t
-    worker_stopped = WORKER_STOPPED;
+static action_replay_worker_t_worker_status_t worker_starting =
+    WORKER_STARTING;
+static action_replay_worker_t_worker_status_t worker_started = WORKER_STARTED;
+static action_replay_worker_t_worker_status_t worker_stopping =
+    WORKER_STOPPING;
+static action_replay_worker_t_worker_status_t worker_stopped = WORKER_STOPPED;
 
 static action_replay_stateful_return_t
 action_replay_worker_t_state_t_new( action_replay_args_t const args )
@@ -67,8 +60,7 @@ action_replay_worker_t_state_t_new( action_replay_args_t const args )
     return result;
 }
 
-static action_replay_return_t
-action_replay_worker_t_state_t_delete(
+static action_replay_return_t action_replay_worker_t_state_t_delete(
     action_replay_worker_t_state_t * const worker_state
 )
 {
@@ -78,8 +70,7 @@ action_replay_worker_t_state_t_delete(
 
 action_replay_class_t const * action_replay_worker_t_class( void );
 
-static action_replay_return_t
-action_replay_worker_t_internal(
+static action_replay_return_t action_replay_worker_t_internal(
     action_replay_object_oriented_programming_super_operation_t const
         operation,
     action_replay_worker_t * const restrict worker,
@@ -94,9 +85,7 @@ action_replay_worker_t_internal(
 )
 {
     if( NULL == args.state )
-    {
-        return ( action_replay_return_t const ) { EINVAL };
-    }
+    { return ( action_replay_return_t const ) { EINVAL }; }
 
     SUPER(
         operation,
@@ -153,12 +142,10 @@ action_replay_worker_t_internal(
     return ( action_replay_return_t const ) { result.status };
 }
 
-static action_replay_return_t
-action_replay_worker_t_func_t_start_lock(
+static action_replay_return_t action_replay_worker_t_func_t_start_lock(
     action_replay_worker_t * const worker
 );
-static action_replay_return_t
-action_replay_worker_t_start_func_t_start_locked(
+static action_replay_return_t action_replay_worker_t_start_func_t_start_locked(
     action_replay_worker_t * const self,
     void * state
 );
@@ -167,22 +154,18 @@ action_replay_worker_t_unlock_func_t_start_unlock(
     action_replay_worker_t * const worker,
     bool const successful
 );
-static action_replay_return_t
-action_replay_worker_t_func_t_stop_lock(
+static action_replay_return_t action_replay_worker_t_func_t_stop_lock(
     action_replay_worker_t * const worker
 );
-static action_replay_return_t
-action_replay_worker_t_func_t_stop_locked(
+static action_replay_return_t action_replay_worker_t_func_t_stop_locked(
     action_replay_worker_t * const worker
 );
-static action_replay_return_t
-action_replay_worker_t_unlock_func_t_stop_unlock(
+static action_replay_return_t action_replay_worker_t_unlock_func_t_stop_unlock(
     action_replay_worker_t * const worker,
     bool const successfult
 );
 
-static inline action_replay_return_t
-action_replay_worker_t_constructor(
+static inline action_replay_return_t action_replay_worker_t_constructor(
     void * const object,
     action_replay_args_t const args
 )
@@ -212,12 +195,8 @@ action_replay_worker_t_destructor( void * const object )
         );
     action_replay_return_t result = { 0 };
 
-    if( NULL == worker_state )
-    {
-        return result;
-    }
-    result = 
-        ACTION_REPLAY_DYNAMIC(
+    if( NULL == worker_state ) { return result; }
+    result = ACTION_REPLAY_DYNAMIC(
             action_replay_worker_t_func_t,
             stop_lock,
             object
@@ -225,28 +204,20 @@ action_replay_worker_t_destructor( void * const object )
     switch( result.status )
     {
         case 0:
-            {
-                result =
-                    ACTION_REPLAY_DYNAMIC(
-                        action_replay_worker_t_func_t,
-                        stop_locked,
-                        object
-                    )( object );
-                    ACTION_REPLAY_DYNAMIC(
-                        action_replay_worker_t_unlock_func_t,
-                        stop_unlock,
-                        object
-                    )( object, ( 0 == result.status ));
-                if( 0 != result.status )
-                {
-                    return result;
-                }
-            }
+            result = ACTION_REPLAY_DYNAMIC(
+                    action_replay_worker_t_func_t,
+                    stop_locked,
+                    object
+                )( object );
+            ACTION_REPLAY_DYNAMIC(
+                action_replay_worker_t_unlock_func_t,
+                stop_unlock,
+                object
+            )( object, ( 0 == result.status ));
+            if( 0 != result.status ) { return result; }
             break;
-        case EALREADY:
-            break;
-        default:
-            return result;
+        case EALREADY: break;
+        default: return result;
     }
     SUPER(
         DESTRUCT,
@@ -268,26 +239,21 @@ action_replay_worker_t_destructor( void * const object )
     return result;
 }
 
-static action_replay_return_t
-action_replay_worker_t_copier(
+static action_replay_return_t action_replay_worker_t_copier(
     void * const restrict copy,
     void const * const restrict original
 )
 {
-    action_replay_args_t_return_t const args =
-        ACTION_REPLAY_DYNAMIC(
+    action_replay_args_t_return_t const args = ACTION_REPLAY_DYNAMIC(
             action_replay_stateful_object_t_args_func_t,
             args,
             original
         )( original );
 
     if( 0 != args.status )
-    {
-        return ( action_replay_return_t const ) { args.status };
-    }
+    { return ( action_replay_return_t const ) { args.status }; }
 
-    action_replay_return_t const result =
-        action_replay_worker_t_internal(
+    action_replay_return_t const result = action_replay_worker_t_internal(
             COPY,
             copy,
             original,
@@ -330,12 +296,10 @@ action_replay_worker_t_copier(
      * by adding complexity and deleting the copy?
      */
     action_replay_args_t_delete( args.args );
-
     return result;
 }
 
-static action_replay_reflector_return_t
-action_replay_worker_t_reflector(
+static action_replay_reflector_return_t action_replay_worker_t_reflector(
     char const * const restrict type,
     char const * const restrict name
 )
@@ -351,33 +315,23 @@ action_replay_worker_t_reflector(
 #undef ACTION_REPLAY_CLASS_METHOD
 #undef ACTION_REPLAY_CURRENT_CLASS
 
-    static size_t const map_size =
-        sizeof( map ) / sizeof( action_replay_reflection_entry_t );
-
     return action_replay_class_t_generic_reflector_logic(
         type,
         name,
         map,
-        map_size
+        sizeof( map ) / sizeof( action_replay_reflection_entry_t )
     );
 }
 
 static action_replay_return_t
-action_replay_worker_t_func_t_start_lock(
-    action_replay_worker_t * const self
-)
+action_replay_worker_t_func_t_start_lock( action_replay_worker_t * const self )
 {
-    if
-    (
+    if(
         ( NULL == self )
         || ( ! action_replay_is_type(
             ( void * const ) self,
             action_replay_worker_t_class()
-        ))
-    )
-    {
-        return ( action_replay_return_t const ) { EINVAL };
-    }
+    ))) { return ( action_replay_return_t const ) { EINVAL }; }
 
     action_replay_worker_t_state_t * const worker_state =
         ACTION_REPLAY_DYNAMIC(
@@ -397,43 +351,27 @@ action_replay_worker_t_func_t_start_lock(
         case WORKER_STARTING:
             /* fall through */
         case WORKER_STOPPING:
-            action_replay_log(
-                "%s: worker %p in transition state, cannot continue\n",
-                __func__,
-                self
-            );
+            LOG( "worker %p in transition state, cannot continue", self );
             return ( action_replay_return_t const ) { EBUSY };
         case WORKER_STARTED:
-            action_replay_log(
-                "%s: worker %p already started\n",
-                __func__,
-                self
-            );
+            LOG( "worker %p already started", self );
             return ( action_replay_return_t const ) { EALREADY };
-        case WORKER_STOPPED:
-            return ( action_replay_return_t const ) { 0 };
-        default:
-            return ( action_replay_return_t const ) { EINVAL };
+        case WORKER_STOPPED: return ( action_replay_return_t const ) { 0 };
+        default: return ( action_replay_return_t const ) { EINVAL };
     }
 }
 
-static action_replay_return_t
-action_replay_worker_t_start_func_t_start_locked(
+static action_replay_return_t action_replay_worker_t_start_func_t_start_locked(
     action_replay_worker_t * const self,
     void * state
 )
 {
-    if
-    (
+    if(
         ( NULL == self )
         || ( ! action_replay_is_type(
             ( void * const ) self,
             action_replay_worker_t_class()
-        ))
-    )
-    {
-        return ( action_replay_return_t const ) { EINVAL };
-    }
+    ))) { return ( action_replay_return_t const ) { EINVAL }; }
 
     action_replay_worker_t_state_t * const worker_state =
         ACTION_REPLAY_DYNAMIC(
@@ -442,7 +380,8 @@ action_replay_worker_t_start_func_t_start_locked(
             self
         );
 
-    return ( action_replay_return_t const ) {
+    return ( action_replay_return_t const )
+    {
         pthread_create(
             &( worker_state->worker ),
             NULL,
@@ -458,24 +397,14 @@ action_replay_worker_t_unlock_func_t_start_unlock(
     bool const successful
 )
 {
-    if
-    (
+    if(
         ( NULL == self )
         || ( ! action_replay_is_type(
             ( void * const ) self,
             action_replay_worker_t_class()
-        ))
-    )
-    {
-        return ( action_replay_return_t const ) { EINVAL };
-    }
+    ))) { return ( action_replay_return_t const ) { EINVAL }; }
 
-    action_replay_log(
-        "%s: unlocking worker %p with condition = %d\n",
-        __func__,
-        self,
-        ( int ) successful
-    );
+    LOG( "unlocking worker %p with condition %d", self, ( int ) successful );
 
     action_replay_worker_t_state_t * const worker_state =
         ACTION_REPLAY_DYNAMIC(
@@ -490,27 +419,19 @@ action_replay_worker_t_unlock_func_t_start_unlock(
             ( successful ) ? &worker_started : &worker_stopped
         );
 
-    return ( action_replay_return_t const ) {
-        ( WORKER_STARTING == * worker_status ) ? 0 : EINVAL
-    };
+    return ( action_replay_return_t const )
+    { ( WORKER_STARTING == * worker_status ) ? 0 : EINVAL };
 }
 
 static action_replay_return_t
-action_replay_worker_t_func_t_stop_lock(
-    action_replay_worker_t * const self
-)
+action_replay_worker_t_func_t_stop_lock( action_replay_worker_t * const self )
 {
-    if
-    (
+    if(
         ( NULL == self )
         || ( ! action_replay_is_type(
             ( void * const ) self,
             action_replay_worker_t_class()
-        ))
-    )
-    {
-        return ( action_replay_return_t const ) { EINVAL };
-    }
+    ))) { return ( action_replay_return_t const ) { EINVAL }; }
 
     action_replay_worker_t_state_t * const worker_state =
         ACTION_REPLAY_DYNAMIC(
@@ -530,43 +451,29 @@ action_replay_worker_t_func_t_stop_lock(
         case WORKER_STARTING:
             /* fall through */
         case WORKER_STOPPING:
-            action_replay_log(
-                "%s: in transition, cannot continue\n",
-                __func__
-            );
+            LOG( "in transition, cannot continue" );
             return ( action_replay_return_t const ) { EBUSY };
-        case WORKER_STARTED:
-            return ( action_replay_return_t const ) { 0 };
+        case WORKER_STARTED: return ( action_replay_return_t const ) { 0 };
         case WORKER_STOPPED:
-            action_replay_log(
-                "%s: worker %p already stopped\n",
-                __func__,
-                self
-            );
+            LOG( "worker %p already stopped", self );
             return ( action_replay_return_t const ) { EALREADY };
-        default:
-            return ( action_replay_return_t const ) { EINVAL };
+        default: return ( action_replay_return_t const ) { EINVAL };
     }
 }
 
-static action_replay_return_t
-action_replay_worker_t_func_t_stop_locked(
+static action_replay_return_t action_replay_worker_t_func_t_stop_locked(
     action_replay_worker_t * const self
 )
 {
-    if
-    (
+    if(
         ( NULL == self )
         || ( ! action_replay_is_type(
             ( void * const ) self,
             action_replay_worker_t_class()
-        ))
-    )
-    {
-        return ( action_replay_return_t const ) { EINVAL };
-    }
+    ))) { return ( action_replay_return_t const ) { EINVAL }; }
 
-    return ( action_replay_return_t const ) {
+    return ( action_replay_return_t const )
+    {
         pthread_join(
             ACTION_REPLAY_DYNAMIC(
                 action_replay_worker_t_state_t *,
@@ -578,29 +485,19 @@ action_replay_worker_t_func_t_stop_locked(
     }; /* wait for thread to finish using state */
 }
 
-static action_replay_return_t
-action_replay_worker_t_unlock_func_t_stop_unlock(
+static action_replay_return_t action_replay_worker_t_unlock_func_t_stop_unlock(
     action_replay_worker_t * const self,
     bool const successful
 )
 {
-    if
-    (
+    if(
         ( NULL == self )
         || ( ! action_replay_is_type(
             ( void * const ) self,
             action_replay_worker_t_class()
-        ))
-    )
-    {
-        return ( action_replay_return_t const ) { EINVAL };
-    }
+    ))) { return ( action_replay_return_t const ) { EINVAL }; }
 
-    action_replay_log(
-        "%s: unlocking with condition = %d\n",
-        __func__,
-        ( int ) successful
-    );
+    LOG( "unlocking with condition = %d", ( int ) successful );
 
     action_replay_worker_t_state_t * const worker_state =
         ACTION_REPLAY_DYNAMIC(
@@ -615,9 +512,8 @@ action_replay_worker_t_unlock_func_t_stop_unlock(
             ( successful ) ? &worker_stopped : &worker_started
         );
 
-    return ( action_replay_return_t const ) {
-        ( WORKER_STOPPING == * worker_status ) ? 0 : EINVAL
-    };
+    return ( action_replay_return_t const )
+    { ( WORKER_STOPPING == * worker_status ) ? 0 : EINVAL };
 }
 
 action_replay_class_t const * action_replay_worker_t_class( void )
@@ -663,20 +559,17 @@ action_replay_worker_t_args_t_copier( void * const state )
     action_replay_worker_t_args_t const * const original_worker_args = state;
 
     worker_args->thread_function = original_worker_args->thread_function;
+
     return result;
 }
 
-action_replay_args_t
-action_replay_worker_t_args(
+action_replay_args_t action_replay_worker_t_args(
     action_replay_worker_t_thread_func_t const thread_function
 )
 {
     action_replay_args_t result = action_replay_args_t_default_args();
 
-    if( NULL == thread_function )
-    {
-        return result;
-    }
+    if( NULL == thread_function ) { return result; }
 
     action_replay_worker_t_args_t args = { thread_function };
     action_replay_stateful_return_t const copy =
