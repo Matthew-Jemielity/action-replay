@@ -4,8 +4,8 @@
 # define __STDC_FORMAT_MACROS
 
 # include <action_replay/return.h>
-# include <inttypes.h>
-# include <stdint.h>
+# include <action_replay/inttypes.h>
+# include <action_replay/stdint.h>
 # include <stdio.h>
 
 action_replay_return_t action_replay_log_init( FILE * const output );
