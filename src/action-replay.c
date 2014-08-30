@@ -1,3 +1,5 @@
+#define _POSIX_C_SOURCE 1 /* sigaction */
+
 #include "action_replay/log.h"
 #include "action_replay/object_oriented_programming.h"
 #include "action_replay/player.h"
