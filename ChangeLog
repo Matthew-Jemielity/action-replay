@@ -1,3 +1,27 @@
+commit ca407084089197615763781dd43d5fd416bdee85
+Author: Mateusz Jemielity <matthew.jemielity@gmail.com>
+Date:   Sun Sep 14 10:03:28 2014 -0700
+
+    mmaping input file instead of fopen, getline
+
+commit 8e2e80771645b5fc20515e544a29a8c9b1dd82c4
+Author: Mateusz Jemielity <matthew.jemielity@gmail.com>
+Date:   Sat Aug 30 13:26:48 2014 -0700
+
+    small fixes in headers
+
+commit 851f85b07ff5017e937b27a39df24b995a9e6ee4
+Author: Mateusz Jemielity <matthew.jemielity@gmail.com>
+Date:   Sat Aug 30 13:15:57 2014 -0700
+
+    action-replay.c needed posix source definition to use sigint with pure C99
+
+commit d789ee6c9e0815a91048611d7a3e0db3cc8ebd1f
+Author: Mateusz Jemielity <matthew.jemielity@gmail.com>
+Date:   Sat Aug 30 13:10:44 2014 -0700
+
+    v1.2
+
 commit 4890f046d46d5438ec33a594e7051fdf07d209bc
 Author: Mateusz Jemielity <matthew.jemielity@gmail.com>
 Date:   Sat Aug 30 13:06:35 2014 -0700
