@@ -16,6 +16,7 @@
 #include "action_replay/time.h"
 #include "action_replay/workqueue.h"
 #include <errno.h>
+#include <fcntl.h>
 #include <jsmn.h>
 #include <linux/input.h>
 #include <linux/types.h>
@@ -24,6 +25,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/mman.h>
+#include <sys/stat.h>
 #include <sys/time.h>
 #include <sys/types.h>
 #include <time.h>
@@ -44,6 +47,7 @@
 #define INPUT_JSON_VALUE_TOKEN 8
 
 #define INPUT_MAX_LEN 1024
+#define START_OF_FILE 0
 
 typedef struct {
     action_replay_time_t * zero_time;
@@ -54,9 +58,9 @@ typedef struct { char * path_to_input; } action_replay_player_t_args_t;
 typedef struct {
     action_replay_player_t_state_t * player_state;
     action_replay_time_t * zero_time;
-    char * buffer;
+    char const * buffer;
     jsmntok_t tokens[ INPUT_JSON_TOKENS_COUNT ];
-    size_t size;
+    size_t buffer_length;
 } action_replay_player_t_worker_state_t;
 
 struct action_replay_player_t_state_t
@@ -66,12 +70,19 @@ struct action_replay_player_t_state_t
     action_replay_stoppable_t_start_func_t stoppable_start;
     action_replay_stoppable_t_stop_func_t stoppable_stop;
     action_replay_workqueue_t * queue;
-    FILE * input;
+    void const * input;
     FILE * output;
     OPA_ptr_t input_flag;
     pthread_cond_t condition;
     pthread_mutex_t mutex;
+    size_t input_length;
 };
+
+typedef struct {
+    action_replay_error_t status;
+    char const * buffer;
+    size_t buffer_length;
+} action_replay_player_t_skip_t;
 
 typedef enum {
     INPUT_IDLE,
@@ -83,8 +94,10 @@ static action_replay_player_t_input_flag_t input_idle = INPUT_IDLE;
 static action_replay_player_t_input_flag_t input_processing = INPUT_PROCESSING;
 static action_replay_player_t_input_flag_t input_finished = INPUT_FINISHED;
 
-static FILE *
-action_replay_player_t_open_output_from_header( FILE * const input );
+static FILE * action_replay_player_t_open_output_from_header(
+    char const * const buffer,
+    size_t const buffer_length
+);
 
 static action_replay_stateful_return_t action_replay_player_t_state_t_new(
     action_replay_args_t const args,
@@ -117,8 +130,9 @@ static action_replay_stateful_return_t action_replay_player_t_state_t_new(
         goto handle_workqueue_new_error;
     }
 
-    player_state->input = fopen( player_args->path_to_input, "r" );
-    if( NULL == player_state->input )
+    int const input_fd = open( player_args->path_to_input, O_RDONLY );
+
+    if( -1 == input_fd )
     {
         result.status = errno;
         LOG(
@@ -128,13 +142,49 @@ static action_replay_stateful_return_t action_replay_player_t_state_t_new(
         );
         goto handle_input_open_error;
     }
+
+    struct stat input_stat;
+
+    if( -1 == fstat( input_fd, &input_stat ))
+    {
+        result.status = errno;
+        LOG(
+            "failure to stat %s, errno = %d",
+            player_args->path_to_input,
+            result.status
+        );
+        close( input_fd );
+        goto handle_input_stat_error;
+    }
+    player_state->input_length = input_stat.st_size;
+    if( MAP_FAILED == ( player_state->input = mmap(
+        NULL,
+        player_state->input_length,
+        PROT_READ,
+        MAP_SHARED, /* allows mapping of file larger than available memory */
+        input_fd,
+        START_OF_FILE
+    )))
+    {
+        result.status = errno;
+        LOG(
+            "failure to map %s, errno = %d",
+            player_args->path_to_input,
+            result.status
+        );
+        close( input_fd );
+        goto handle_input_map_error;
+    }
+    close( input_fd );
     LOG(
-        "%s opened as %p",
+        "%s mapped as %p",
         player_args->path_to_input,
         player_state->input
     );
-    player_state->output =
-        action_replay_player_t_open_output_from_header( player_state->input );
+    player_state->output = action_replay_player_t_open_output_from_header(
+        player_state->input,
+        player_state->input_length
+    );
     if( NULL == player_state->output )
     {
         result.status = EIO;
@@ -158,7 +208,10 @@ handle_pthread_mutex_error:
 handle_pthread_cond_error:
     fclose( player_state->output );
 handle_output_open_error:
-    fclose( player_state->input );
+    /* we control the buffer, const can be dropped */
+    munmap( ( void * ) player_state->input, player_state->input_length );
+handle_input_map_error:
+handle_input_stat_error:
 handle_input_open_error:
     action_replay_delete( ( void * ) player_state->queue );
 handle_workqueue_new_error:
@@ -181,7 +234,11 @@ static action_replay_return_t action_replay_player_t_state_t_delete(
     /* stop() called, mutex known to be unlocked */
     result.status = pthread_mutex_destroy( &( player_state->mutex ));
     if( 0 != result.status ) { return result; }
-    if( EOF == fclose( player_state->input ))
+    if(
+        -1 == munmap(
+            ( void * ) player_state->input,
+            player_state->input_length
+    ))
     {
         result.status = errno;
         return result;
@@ -378,6 +435,10 @@ static action_replay_reflector_return_t action_replay_player_t_reflector(
 }
 
 static action_replay_error_t action_replay_player_t_worker( void * state );
+static action_replay_player_t_skip_t action_replay_player_t_skip_header(
+    char const * const input,
+    size_t const input_length
+);
 
 static action_replay_return_t action_replay_player_t_start_func_t_start(
     action_replay_stoppable_t * const self,
@@ -418,9 +479,19 @@ static action_replay_return_t action_replay_player_t_start_func_t_start(
         goto handle_queue_start_error;
     }
 
+    action_replay_player_t_skip_t skip = action_replay_player_t_skip_header(
+            player_state->input,
+            player_state->input_length
+        );
+
+    if( 0 != ( result.status = skip.status ))
+    {
+        LOG( "failure skipping header" );
+        goto handle_skip_header_error;
+    }
     worker_state->player_state = player_state;
-    worker_state->buffer = NULL;
-    worker_state->size = 0;
+    worker_state->buffer = skip.buffer;
+    worker_state->buffer_length = skip.buffer_length;
     result = player_state->stoppable_start(
         self,
         action_replay_stoppable_t_start_state(
@@ -440,6 +511,8 @@ static action_replay_return_t action_replay_player_t_start_func_t_start(
         return result;
     }
 
+handle_skip_header_error:
+    player_state->queue->stop( player_state->queue );
 handle_queue_start_error:
     /* XXX: possible leak */
     action_replay_args_t_delete( start_state );
@@ -473,7 +546,6 @@ static action_replay_return_t action_replay_player_t_stop_func_t_internal(
     /* XXX: possible leak */
     action_replay_args_t_delete( player_state->start_state );
     player_state->start_state = action_replay_args_t_default_args();
-    free( player_state->worker_state->buffer );
     free( player_state->worker_state );
     player_state->worker_state = NULL;
 
@@ -572,39 +644,53 @@ typedef struct {
 
 static action_replay_player_t_worker_parse_state_t *
 action_replay_player_t_parse_line(
-    char * const restrict buffer,
+    char const * const restrict buffer,
     size_t const size,
     action_replay_time_t * const restrict zero_time,
     FILE * const restrict output,
     jsmntok_t * const restrict tokens
 );
 static void action_replay_player_t_process_item( void * const state );
+static action_replay_player_t_skip_t action_replay_player_t_get_line(
+    char const * const buffer,
+    size_t const buffer_length
+);
+static action_replay_player_t_skip_t action_replay_player_t_skip_comments(
+    char const * const buffer,
+    size_t const buffer_length
+);
 
 static action_replay_error_t action_replay_player_t_worker( void * state )
 {
     action_replay_error_t result;
     action_replay_player_t_worker_state_t * const worker_state = state;
+    action_replay_player_t_skip_t skip = action_replay_player_t_skip_comments(
+            worker_state->buffer,
+            worker_state->buffer_length
+        );
 
-    if( 0 >= getline(
-        &( worker_state->buffer ),
-        &( worker_state->size ),
-        worker_state->player_state->input
-    ))
-    {
-        result = errno;
-        goto handle_do_not_repeat;
-    }
-    if( COMMENT_SYMBOL == ( worker_state->buffer )[ 0 ] ) { return EAGAIN; }
+    if( 0 != ( result = skip.status )) { goto handle_do_not_repeat; }
+    worker_state->buffer = skip.buffer;
+    worker_state->buffer_length = skip.buffer_length;
+
+    action_replay_player_t_skip_t line = action_replay_player_t_get_line(
+            worker_state->buffer,
+            worker_state->buffer_length
+        );
+
+    if( 0 != ( result = line.status )) { goto handle_do_not_repeat; }
 
     action_replay_player_t_worker_parse_state_t * parse_state =
         action_replay_player_t_parse_line(
-            worker_state->buffer,
-            worker_state->size,
+            line.buffer,
+            line.buffer_length,
             worker_state->zero_time,
             worker_state->player_state->output,
             worker_state->tokens
         );
 
+    worker_state->buffer += line.buffer_length + 1;
+    worker_state->buffer_length -= line.buffer_length;
     if( NULL == parse_state )
     {
         LOG( "allocation failure for parse_state in worker %p", worker_state );
@@ -634,7 +720,7 @@ handle_do_not_repeat:
 
 static action_replay_player_t_worker_parse_state_t *
 action_replay_player_t_parse_line(
-    char * const restrict buffer,
+    char const * const restrict buffer,
     size_t const size,
     action_replay_time_t * const restrict zero_time,
     FILE * const restrict output,
@@ -653,11 +739,6 @@ action_replay_player_t_parse_line(
         LOG( "failure parsing JSON, buffer = %s", buffer );
         return NULL;
     }
-    /* limit substrings in buffer */
-    buffer[ tokens[ INPUT_JSON_TIME_TOKEN ].end ] = '\0';
-    buffer[ tokens[ INPUT_JSON_TYPE_TOKEN ].end ] = '\0';
-    buffer[ tokens[ INPUT_JSON_CODE_TOKEN ].end ] = '\0';
-    buffer[ tokens[ INPUT_JSON_VALUE_TOKEN ].end ] = '\0';
 
     action_replay_player_t_worker_parse_state_t * const parse_state =
         calloc( 1, sizeof( action_replay_player_t_worker_parse_state_t ));
@@ -776,28 +857,46 @@ handle_skip_sleep:
     free( state );
 }
 
-static FILE *
-action_replay_player_t_open_output_from_header( FILE * const input )
+static FILE * action_replay_player_t_open_output_from_header(
+    char const * const buffer,
+    size_t const buffer_length
+)
 {
-    char * buffer = NULL;
     FILE * result = NULL;
-    size_t size = 0;
+    action_replay_player_t_skip_t skip = action_replay_player_t_skip_comments(
+            buffer,
+            buffer_length
+        );
 
-    do {
-        if( 0 > getline( &buffer, &size, input ))
-        {
-            LOG( "failure reading header from input file" );
-            return NULL;
-        }
-    } while( COMMENT_SYMBOL == buffer[ 0 ] );
+    if( 0 != skip.status )
+    {
+        LOG( "failure getting header offset" );
+        return NULL;
+    }
+
+    action_replay_player_t_skip_t line = action_replay_player_t_get_line(
+            skip.buffer,
+            skip.buffer_length
+        );
+
+    if( 0 != line.status )
+    {
+        LOG( "failure reading header from input file" );
+        return NULL;
+    }
 
     jsmn_parser parser;
     jsmntok_t tokens[ HEADER_JSON_TOKENS_COUNT ];
 
     jsmn_init( &parser );
 
-    jsmnerr_t const parse_result =
-        jsmn_parse( &parser, buffer, size, tokens, HEADER_JSON_TOKENS_COUNT );
+    jsmnerr_t const parse_result = jsmn_parse(
+            &parser,
+            line.buffer,
+            line.buffer_length,
+            tokens,
+            HEADER_JSON_TOKENS_COUNT
+        );
 
     if( HEADER_JSON_TOKENS_COUNT != parse_result )
     {
@@ -812,20 +911,92 @@ action_replay_player_t_open_output_from_header( FILE * const input )
         LOG( "path has wrong token type" );
         goto handle_invalid_token_error;
     }
-    buffer[ path_token.end ] = '\0'; /* no need for rest of line */
 
-    result = fopen( buffer + path_token.start, "a" );
+    char * filepath = calloc(
+        path_token.end - path_token.start + 1,
+        sizeof( char )
+    );
+
+    if( NULL == filepath) { goto handle_filepath_alloc_error; }
+    strncpy(
+        filepath,
+        line.buffer + path_token.start,
+        path_token.end - path_token.start
+    );
+    result = fopen( filepath, "a" );
     LOG(
         "%s opening output device %s as %p",
         ( NULL == result ) ? "failure" : "success",
-        buffer + path_token.start,
+        filepath,
         result
     );
-
+    free( filepath );
+handle_filepath_alloc_error:
 handle_invalid_token_error:
 handle_jsmn_parse_error:
-    free( buffer );
     return result;
+}
+
+static inline action_replay_player_t_skip_t action_replay_player_t_get_line(
+    char const * const buffer,
+    size_t const buffer_length
+)
+{
+    size_t offset = 0;
+
+    while(( '\n' != buffer[ offset ] ) && ( buffer_length - 1 > offset ))
+    { ++offset; }
+    return ( action_replay_player_t_skip_t ) { 0, buffer, offset };
+}
+
+static action_replay_player_t_skip_t action_replay_player_t_skip_comments(
+    char const * const buffer,
+    size_t const buffer_length
+)
+{
+    size_t offset = 0;
+
+    while(
+        ( COMMENT_SYMBOL == buffer[ offset ] ) && ( buffer_length - 1 > offset)
+    )
+    {
+        action_replay_player_t_skip_t line = action_replay_player_t_get_line(
+                buffer + offset,
+                buffer_length - offset
+            );
+
+        if( 0 != line.status )
+        { return ( action_replay_player_t_skip_t ) { line.status, NULL, 0 }; }
+        offset += 1 + line.buffer_length;
+    }
+    if( buffer_length - 1 <= offset )
+    { return ( action_replay_player_t_skip_t ) { EINVAL, NULL, 0 }; }
+
+    return ( action_replay_player_t_skip_t )
+    { 0, buffer + offset, buffer_length - offset };
+}
+
+static action_replay_player_t_skip_t action_replay_player_t_skip_header(
+    char const * const buffer,
+    size_t const buffer_length
+)
+{
+    action_replay_player_t_skip_t comments =
+        action_replay_player_t_skip_comments( buffer, buffer_length );
+
+    if( 0 != comments.status )
+    { return ( action_replay_player_t_skip_t ) { comments.status, NULL, 0 }; }
+
+    action_replay_player_t_skip_t header =
+        action_replay_player_t_get_line( comments.buffer, comments.buffer_length );
+
+    if( 0 != header.status )
+    { return ( action_replay_player_t_skip_t ) { header.status, NULL, 0 }; }
+    
+    return action_replay_player_t_skip_comments(
+        comments.buffer + header.buffer_length + 1,
+        comments.buffer_length - header.buffer_length - 1
+    );
 }
 
 static action_replay_return_t
