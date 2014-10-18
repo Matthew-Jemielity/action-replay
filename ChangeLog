@@ -1,3 +1,15 @@
+commit 648c7ea32013d92d7687b2acdc41b51d7d3465e6
+Author: Mateusz Jemielity <matthew.jemielity@gmail.com>
+Date:   Sat Oct 18 14:45:09 2014 -0700
+
+    backport fixes from branch player_worker_refactor
+
+commit aa01b4b4338b0ed951b3bc012b5b1990249acd9b
+Author: Mateusz Jemielity <matthew.jemielity@gmail.com>
+Date:   Sun Sep 14 10:11:53 2014 -0700
+
+    updated ChangeLog; TODO: 1) push more work into queued workers, so allocation of queue worker's argument isn't necessary; 2) documentation
+
 commit ca407084089197615763781dd43d5fd416bdee85
 Author: Mateusz Jemielity <matthew.jemielity@gmail.com>
 Date:   Sun Sep 14 10:03:28 2014 -0700
