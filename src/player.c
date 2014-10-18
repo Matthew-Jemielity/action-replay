@@ -706,7 +706,12 @@ static action_replay_error_t action_replay_player_t_worker( void * state )
             parse_state
         );
     
-    if( 0 == put_result.status ) { return EAGAIN; }
+    if(
+        ( 0 == ( result = put_result.status ))
+        && ( 0 != worker_state->buffer_length )
+    ) { return EAGAIN; }
+    if( 0 == worker_state->buffer_length )
+    { LOG( "parsing finished"); goto handle_do_not_repeat; }
 
     free( parse_state );
     result = put_result.status;
