@@ -664,7 +664,8 @@ static action_replay_error_t action_replay_player_t_worker( void * state )
 {
     action_replay_error_t result;
     action_replay_player_t_worker_state_t * const worker_state = state;
-    action_replay_player_t_skip_t skip = action_replay_player_t_skip_comments(
+    action_replay_player_t_skip_t const skip =
+        action_replay_player_t_skip_comments(
             worker_state->buffer,
             worker_state->buffer_length
         );
@@ -673,14 +674,14 @@ static action_replay_error_t action_replay_player_t_worker( void * state )
     worker_state->buffer = skip.buffer;
     worker_state->buffer_length = skip.buffer_length;
 
-    action_replay_player_t_skip_t line = action_replay_player_t_get_line(
+    action_replay_player_t_skip_t const line = action_replay_player_t_get_line(
             worker_state->buffer,
             worker_state->buffer_length
         );
 
     if( 0 != ( result = line.status )) { goto handle_do_not_repeat; }
 
-    action_replay_player_t_worker_parse_state_t * parse_state =
+    action_replay_player_t_worker_parse_state_t * const parse_state =
         action_replay_player_t_parse_line(
             line.buffer,
             line.buffer_length,
@@ -689,7 +690,7 @@ static action_replay_error_t action_replay_player_t_worker( void * state )
             worker_state->tokens
         );
 
-    worker_state->buffer += line.buffer_length + 1;
+    worker_state->buffer += line.buffer_length;
     worker_state->buffer_length -= line.buffer_length;
     if( NULL == parse_state )
     {
@@ -824,24 +825,24 @@ static void action_replay_player_t_process_item( void * const state )
 
         if( E2BIG == result.status ) { goto handle_skip_sleep; }
 
-        action_replay_time_t_converter_return_t const sleep =
+        action_replay_time_t_converter_return_t const sleep_result =
             parse_state->converter( parse_state->zero_time );
 
-        if( 0 != sleep.status ) { goto handle_skip_sleep; }
+        if( 0 != sleep_result.status ) { goto handle_skip_sleep; }
 
 #if HAVE_TIME_H
         struct timespec const sleep_time =
-            sleep.converter->timespec( sleep.converter ).value;
+            sleep_result.converter->timespec( sleep_result.converter ).value;
 
         nanosleep( &sleep_time, NULL );
 #elif HAVE_SYS_TIME_H
         struct timeval const sleep_time =
-            sleep.converter->timeval( sleep.converter ).value;
+            sleep_result.converter->timeval( sleep_result.converter ).value;
 
         select( 0, NULL, NULL, NULL, &sleep_time );
 #endif /* HAVE_TIME_H */
         parse_state->add( parse_state->zero_time, now );
-        action_replay_delete( ( void * ) sleep.converter );
+        action_replay_delete( ( void * ) sleep_result.converter );
 handle_skip_sleep:
         action_replay_delete( ( void * ) now );
     }
@@ -946,7 +947,13 @@ static inline action_replay_player_t_skip_t action_replay_player_t_get_line(
 
     while(( '\n' != buffer[ offset ] ) && ( buffer_length - 1 > offset ))
     { ++offset; }
-    return ( action_replay_player_t_skip_t ) { 0, buffer, offset };
+    return ( action_replay_player_t_skip_t )
+    {
+        (( '\n' == buffer[ offset ] ) || (( buffer_length - 1 ) == offset ))
+            ? 0 : EINVAL,
+        buffer,
+        offset + 1
+    };
 }
 
 static action_replay_player_t_skip_t action_replay_player_t_skip_comments(
@@ -967,7 +974,7 @@ static action_replay_player_t_skip_t action_replay_player_t_skip_comments(
 
         if( 0 != line.status )
         { return ( action_replay_player_t_skip_t ) { line.status, NULL, 0 }; }
-        offset += 1 + line.buffer_length;
+        offset += line.buffer_length;
     }
     if( buffer_length - 1 <= offset )
     { return ( action_replay_player_t_skip_t ) { EINVAL, NULL, 0 }; }
@@ -994,8 +1001,8 @@ static action_replay_player_t_skip_t action_replay_player_t_skip_header(
     { return ( action_replay_player_t_skip_t ) { header.status, NULL, 0 }; }
     
     return action_replay_player_t_skip_comments(
-        comments.buffer + header.buffer_length + 1,
-        comments.buffer_length - header.buffer_length - 1
+        comments.buffer + header.buffer_length,
+        comments.buffer_length - header.buffer_length
     );
 }
 
