@@ -674,6 +674,9 @@ static action_replay_error_t action_replay_player_t_worker( void * state )
     worker_state->buffer = skip.buffer;
     worker_state->buffer_length = skip.buffer_length;
 
+    if( 0 == worker_state->buffer_length )
+    { LOG( "parsing finished"); goto handle_do_not_repeat; }
+
     action_replay_player_t_skip_t const line = action_replay_player_t_get_line(
             worker_state->buffer,
             worker_state->buffer_length
@@ -706,12 +709,7 @@ static action_replay_error_t action_replay_player_t_worker( void * state )
             parse_state
         );
     
-    if(
-        ( 0 == ( result = put_result.status ))
-        && ( 0 != worker_state->buffer_length )
-    ) { return EAGAIN; }
-    if( 0 == worker_state->buffer_length )
-    { LOG( "parsing finished"); goto handle_do_not_repeat; }
+    if( 0 == ( result = put_result.status )) { return EAGAIN; }
 
     free( parse_state );
     result = put_result.status;
@@ -950,11 +948,11 @@ static inline action_replay_player_t_skip_t action_replay_player_t_get_line(
 {
     size_t offset = 0;
 
-    while(( '\n' != buffer[ offset ] ) && ( buffer_length - 1 > offset ))
+    while(( buffer_length > offset + 1 ) && ( '\n' != buffer[ offset ] ))
     { ++offset; }
     return ( action_replay_player_t_skip_t )
     {
-        (( '\n' == buffer[ offset ] ) || (( buffer_length - 1 ) == offset ))
+        (( '\n' == buffer[ offset ] ) || ( buffer_length == ( offset + 1 )))
             ? 0 : EINVAL,
         buffer,
         offset + 1
@@ -969,7 +967,8 @@ static action_replay_player_t_skip_t action_replay_player_t_skip_comments(
     size_t offset = 0;
 
     while(
-        ( COMMENT_SYMBOL == buffer[ offset ] ) && ( buffer_length - 1 > offset)
+        ( buffer_length > offset + 1 )
+        && ( COMMENT_SYMBOL == buffer[ offset ] )
     )
     {
         action_replay_player_t_skip_t line = action_replay_player_t_get_line(
@@ -981,8 +980,6 @@ static action_replay_player_t_skip_t action_replay_player_t_skip_comments(
         { return ( action_replay_player_t_skip_t ) { line.status, NULL, 0 }; }
         offset += line.buffer_length;
     }
-    if( buffer_length - 1 <= offset )
-    { return ( action_replay_player_t_skip_t ) { EINVAL, NULL, 0 }; }
 
     return ( action_replay_player_t_skip_t )
     { 0, buffer + offset, buffer_length - offset };
