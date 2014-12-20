@@ -4,6 +4,7 @@
 #include "action_replay/args.h"
 #include "action_replay/class.h"
 #include "action_replay/error.h"
+#include "action_replay/inttypes.h"
 #include "action_replay/log.h"
 #include "action_replay/object_oriented_programming.h"
 #include "action_replay/object_oriented_programming_super.h"
@@ -11,6 +12,7 @@
 #include "action_replay/return.h"
 #include "action_replay/stateful_return.h"
 #include "action_replay/stddef.h"
+#include "action_replay/stdint.h"
 #include "action_replay/stoppable.h"
 #include "action_replay/strndup.h"
 #include "action_replay/time.h"
@@ -56,11 +58,23 @@ typedef struct {
 typedef struct { char * path_to_input; } action_replay_player_t_args_t;
 
 typedef struct {
+    action_replay_time_t * zero_time;
+    action_replay_time_t_func_t add;
+    action_replay_time_t_func_t sub;
+    action_replay_time_t_converter_func_t converter;
+    FILE * output;
+    action_replay_time_converter_t const * sleep;
+    struct input_event event;
+} action_replay_player_t_worker_parse_state_t;
+
+typedef struct {
     action_replay_player_t_state_t * player_state;
     action_replay_time_t * zero_time;
     char const * buffer;
-    jsmntok_t tokens[ INPUT_JSON_TOKENS_COUNT ];
     size_t buffer_length;
+    uint64_t line;
+    action_replay_player_t_worker_parse_state_t * parse_states;
+    jsmntok_t tokens[ INPUT_JSON_TOKENS_COUNT ];
 } action_replay_player_t_worker_state_t;
 
 struct action_replay_player_t_state_t
@@ -439,6 +453,11 @@ static action_replay_player_t_skip_t action_replay_player_t_skip_header(
     char const * const input,
     size_t const input_length
 );
+static action_replay_player_t_worker_parse_state_t *
+action_replay_player_t_prealloc_parse_states(
+    char const * const buffer,
+    size_t const buffer_length
+);
 
 static action_replay_return_t action_replay_player_t_start_func_t_start(
     action_replay_stoppable_t * const self,
@@ -465,12 +484,23 @@ static action_replay_return_t action_replay_player_t_start_func_t_start(
     if( NULL == worker_state )
     { return ( action_replay_return_t const ) { ENOMEM }; }
 
+    worker_state->parse_states = action_replay_player_t_prealloc_parse_states(
+            player_state->input,
+            player_state->input_length
+        );
+
+    action_replay_return_t result;
+
+    if( NULL == worker_state->parse_states )
+    {
+        result.status = ENOMEM;
+        goto handle_parse_states_alloc_error;
+    }
+
     action_replay_player_t_start_state_t * const player_start_state =
         start_state.state;
 
     worker_state->zero_time = player_start_state->zero_time;
-
-    action_replay_return_t result;
 
     result = player_state->queue->start( player_state->queue );
     if( 0 != result.status )
@@ -492,6 +522,7 @@ static action_replay_return_t action_replay_player_t_start_func_t_start(
     worker_state->player_state = player_state;
     worker_state->buffer = skip.buffer;
     worker_state->buffer_length = skip.buffer_length;
+    worker_state->line = 0;
     result = player_state->stoppable_start(
         self,
         action_replay_stoppable_t_start_state(
@@ -516,6 +547,7 @@ handle_skip_header_error:
 handle_queue_start_error:
     /* XXX: possible leak */
     action_replay_args_t_delete( start_state );
+handle_parse_states_alloc_error:
     free( worker_state );
     return result;
 }
@@ -546,6 +578,7 @@ static action_replay_return_t action_replay_player_t_stop_func_t_internal(
     /* XXX: possible leak */
     action_replay_args_t_delete( player_state->start_state );
     player_state->start_state = action_replay_args_t_default_args();
+    free( player_state->worker_state->parse_states );
     free( player_state->worker_state );
     player_state->worker_state = NULL;
 
@@ -632,20 +665,12 @@ action_replay_player_t_join_func_t_join( action_replay_player_t * const self )
     );
 }
 
-typedef struct {
-    action_replay_time_t * zero_time;
-    action_replay_time_t_func_t add;
-    action_replay_time_t_func_t sub;
-    action_replay_time_t_converter_func_t converter;
-    FILE * output;
-    action_replay_time_converter_t const * sleep;
-    struct input_event event;
-} action_replay_player_t_worker_parse_state_t;
-
-static action_replay_player_t_worker_parse_state_t *
+static action_replay_error_t
 action_replay_player_t_parse_line(
     char const * const restrict buffer,
     size_t const size,
+    uint64_t const line,
+    action_replay_player_t_worker_parse_state_t * const restrict parse_states,
     action_replay_time_t * const restrict zero_time,
     FILE * const restrict output,
     jsmntok_t * const restrict tokens
@@ -684,10 +709,12 @@ static action_replay_error_t action_replay_player_t_worker( void * state )
 
     if( 0 != ( result = line.status )) { goto handle_do_not_repeat; }
 
-    action_replay_player_t_worker_parse_state_t * const parse_state =
+    action_replay_error_t const parse_result =
         action_replay_player_t_parse_line(
             line.buffer,
             line.buffer_length,
+            worker_state->line,
+            worker_state->parse_states,
             worker_state->zero_time,
             worker_state->player_state->output,
             worker_state->tokens
@@ -695,10 +722,10 @@ static action_replay_error_t action_replay_player_t_worker( void * state )
 
     worker_state->buffer += line.buffer_length;
     worker_state->buffer_length -= line.buffer_length;
-    if( NULL == parse_state )
+    if( 0 != parse_result )
     {
         LOG( "allocation failure for parse_state in worker %p", worker_state );
-        result = EINVAL;
+        result = parse_result;
         goto handle_do_not_repeat;
     }
 
@@ -706,12 +733,12 @@ static action_replay_error_t action_replay_player_t_worker( void * state )
         worker_state->player_state->queue->put(
             worker_state->player_state->queue,
             action_replay_player_t_process_item,
-            parse_state
+            worker_state->parse_states + worker_state->line
         );
     
+    ++( worker_state->line );
     if( 0 == ( result = put_result.status )) { return EAGAIN; }
 
-    free( parse_state );
     result = put_result.status;
 handle_do_not_repeat:
     OPA_store_ptr(
@@ -722,10 +749,12 @@ handle_do_not_repeat:
     return result;
 }
 
-static action_replay_player_t_worker_parse_state_t *
+static action_replay_error_t
 action_replay_player_t_parse_line(
     char const * const restrict buffer,
     size_t const size,
+    uint64_t const line,
+    action_replay_player_t_worker_parse_state_t * const restrict parse_states,
     action_replay_time_t * const restrict zero_time,
     FILE * const restrict output,
     jsmntok_t * const restrict tokens
@@ -741,17 +770,12 @@ action_replay_player_t_parse_line(
     if( INPUT_JSON_TOKENS_COUNT != parse_result )
     {
         LOG( "failure parsing JSON, buffer = %s", buffer );
-        return NULL;
+        return EINVAL;
     }
 
     action_replay_player_t_worker_parse_state_t * const parse_state =
-        calloc( 1, sizeof( action_replay_player_t_worker_parse_state_t ));
+        parse_states + line;
 
-    if( NULL == parse_state )
-    {
-        LOG( "failure allocating memory for workqueue item state" );
-        return NULL;
-    }
     parse_state->sleep = action_replay_new(
         action_replay_time_converter_t_class(),
         action_replay_time_converter_t_args(
@@ -764,7 +788,7 @@ action_replay_player_t_parse_line(
     {
         LOG( "failure allocating memory for sleep time object" );
         free( parse_state );
-        return NULL;
+        return ENOMEM;
     }
     parse_state->zero_time = zero_time;
     parse_state->add =
@@ -802,7 +826,7 @@ action_replay_player_t_parse_line(
         10
     );
 
-    return parse_state;
+    return 0;
 }
 
 static void action_replay_player_t_process_item( void * const state )
@@ -858,7 +882,6 @@ handle_skip_sleep:
     ))
     { LOG( "failure writing to output device %p", parse_state->output ); }
     action_replay_delete( ( void * ) parse_state->sleep );
-    free( state );
 }
 
 static FILE * action_replay_player_t_open_output_from_header(
@@ -939,6 +962,35 @@ handle_filepath_alloc_error:
 handle_invalid_token_error:
 handle_jsmn_parse_error:
     return result;
+}
+
+static action_replay_player_t_worker_parse_state_t *
+action_replay_player_t_prealloc_parse_states(
+    char const * const buffer,
+    size_t const buffer_length
+)
+{
+    uint64_t lines = 0;
+
+    action_replay_player_t_skip_t skip =
+        action_replay_player_t_skip_header( buffer, buffer_length );
+
+    if( 0 != skip.status ) { return NULL; } /* invalid file type? */
+    do {
+        skip = action_replay_player_t_skip_comments( skip.buffer, skip.buffer_length );
+        if( 0 != skip.status ) { continue; }
+        action_replay_player_t_skip_t line =
+            action_replay_player_t_get_line( skip.buffer, skip.buffer_length );
+        if( 0 == ( skip.status = line.status ))
+        {
+            ++lines;
+            skip.buffer += line.buffer_length;
+            skip.buffer_length -= line.buffer_length;
+        }
+    } while( 0 == skip.status );
+
+    LOG( "preallocating parse state for %"PRIu64" lines", lines );
+    return calloc( lines, sizeof( action_replay_player_t_worker_parse_state_t ));
 }
 
 static inline action_replay_player_t_skip_t action_replay_player_t_get_line(
