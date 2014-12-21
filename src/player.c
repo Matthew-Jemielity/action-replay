@@ -15,6 +15,7 @@
 #include "action_replay/stdint.h"
 #include "action_replay/stoppable.h"
 #include "action_replay/strndup.h"
+#include "action_replay/sys/types.h"
 #include "action_replay/time.h"
 #include "action_replay/workqueue.h"
 #include <errno.h>
@@ -30,7 +31,6 @@
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <sys/time.h>
-#include <sys/types.h>
 #include <time.h>
 #include <unistd.h>
 
