@@ -3,5 +3,5 @@
 #endif /* ACTION_REPLAY_STATEFUL_RETURN_H__ */
 
 #include <action_replay/return.interface>
-void * state;
+void * state; /**< pointer to allocated memory */
 

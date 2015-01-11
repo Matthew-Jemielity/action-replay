@@ -13,7 +13,8 @@
 typedef unsigned long int size_t;
 #  endif /* size_t */
 #  ifndef offsetof
-#   define offsetof( type, mbr ) ( ( size_t ) ( &( ( type * ) 0 )->mbr ) )
+#   define offsetof( TYPE, MEMBER ) \
+    ( ( size_t ) ( &( ( TYPE * ) 0 )->MEMBER ) )
 #  endif /* offsetof */
 # endif /* HAVE_STDDEF_H */
 

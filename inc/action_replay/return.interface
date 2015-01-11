@@ -2,5 +2,5 @@
 # error "Add #include <action_replay/return.h>"
 #endif /* ACTION_REPLAY_RETURN_H__ */
 
-action_replay_error_t status;
+action_replay_error_t status; /**< error code, zero on success */
 

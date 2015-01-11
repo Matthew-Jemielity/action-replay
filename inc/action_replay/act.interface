@@ -1,0 +1,10 @@
+#ifndef ACTION_REPLAY_ACT_H__
+# error "Add #include <action_replay/act.h>"
+#endif /* ACTION_REPLAY_ACT_H__ */
+
+ACTION_REPLAY_CLASS_FIELD( action_replay_act_t_state_t *, act_state )
+ACTION_REPLAY_CLASS_METHOD( action_replay_act_t_device_func_t, device )
+ACTION_REPLAY_CLASS_METHOD( action_replay_act_t_get_event_func_t, get_event )
+ACTION_REPLAY_CLASS_METHOD( action_replay_act_t_add_event_func_t, add_event )
+ACTION_REPLAY_CLASS_METHOD( action_replay_act_t_events_func_t, events )
+

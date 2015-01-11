@@ -2,5 +2,14 @@
 # error "Add #include <action_replay/object.h>"
 #endif /* ACTION_REPLAY_OBJECT_H__ */
 
-ACTION_REPLAY_CLASS_FIELD( action_replay_class_t const *, _class )
+ACTION_REPLAY_CLASS_FIELD(
+    action_replay_object_t,
+    uint64_t,
+    magic
+)
+ACTION_REPLAY_CLASS_FIELD(
+    action_replay_object_t,
+    action_replay_class_t const *,
+    _class
+)
 

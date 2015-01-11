@@ -1,6 +1,7 @@
 #ifndef ACTION_REPLAY_OBJECT_ORIENTED_PROGRAMMING_SUPER_H__
 # define ACTION_REPLAY_OBJECT_ORIENTED_PROGRAMMING_SUPER_H__
 
+# include <action_replay/args.h>
 # include <action_replay/class.h>
 # include <action_replay/return.h>
 # include <action_replay/stdbool.h>
@@ -13,69 +14,42 @@ typedef enum
 }
 action_replay_object_oriented_programming_super_operation_t;
 
-#define SUPER_INTERNAL( class_function, object, operation, cleanup ) \
-    do { \
-        action_replay_class_t_func_t const * const parent_list = \
-            class_function()->inheritance; \
-        action_replay_return_t result; \
-        unsigned int index; \
-        \
-        for( index = 0; parent_list[ index ] != NULL; ++index ) \
-        { \
-            action_replay_class_t_func_t const parent = parent_list[ index ]; \
-            if( 0 != ( result = operation ).status ) { break; } \
-        } \
-        \
-        if( 0 == result.status ) { break; } \
-        \
-        for( ; index > 0; --index ) \
-        { \
-            action_replay_class_t_func_t parent = parent_list[ index - 1 ]; \
-            cleanup; \
-        } \
-        return ( action_replay_return_t const ) { EINVAL }; \
-    } while( false )
+typedef action_replay_return_t
+( * action_replay_super_constructor_func_t )(
+    action_replay_class_t const * const caller,
+    void * const object,
+    action_replay_args_t const args
+);
+typedef action_replay_return_t
+( * action_replay_super_destructor_func_t )(
+    action_replay_class_t const * const caller,
+    void * const object
+);
+typedef action_replay_return_t
+( * action_replay_super_copier_func_t )(
+    action_replay_class_t const * const caller,
+    void * const restrict copy,
+    void const * const restrict original
+);
 
-#define SUPER_CONSTRUCTOR( class_function, object, args ) \
-    do { \
-        SUPER_INTERNAL( class_function, object, \
-            parent()->constructor( object, args ), \
-            parent()->destructor( object ); \
-        ); \
-    } while( false )
+typedef union
+{
+    action_replay_super_constructor_func_t constructor;
+    action_replay_super_destructor_func_t destructor;
+    action_replay_super_copier_func_t copier;
+}
+action_replay_super_func_t;
 
-#define SUPER_DESTRUCTOR( class_function, object ) \
-    do { \
-        SUPER_INTERNAL( class_function, object, \
-            parent()->destructor( object ), \
-            ( void )parent \
-        ); \
-    } while( false )
+typedef struct
+{
+# include <action_replay/return.interface>
+    action_replay_super_func_t func;
+}
+action_replay_super_return_t;
 
-#define SUPER_COPIER( class_function, copy, original ) \
-    do { \
-        SUPER_INTERNAL( class_function, copy, \
-            parent()->copier( copy, original ), \
-            parent()->destructor( copy ) \
-        ); \
-    } while( false )
-
-#define SUPER( operation, class_function, object, original_object, args ) \
-    do { \
-        switch( operation ) \
-        { \
-            case CONSTRUCT: \
-                SUPER_CONSTRUCTOR( class_function, object, args ); \
-                break; \
-            case DESTRUCT: \
-                SUPER_DESTRUCTOR( class_function, object ); \
-                break; \
-            case COPY: \
-                SUPER_COPIER( class_function, object, original_object ); \
-                break; \
-            default: \
-                return ( action_replay_return_t const ) { EINVAL }; \
-        } \
-    } while( false )
+action_replay_super_return_t
+action_replay_super(
+    action_replay_object_oriented_programming_super_operation_t const operation
+);
 
 #endif /* ACTION_REPLAY_OBJECT_ORIENTED_PROGRAMMING_SUPER_H__ */

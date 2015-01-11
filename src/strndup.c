@@ -7,7 +7,11 @@
 # include <stdlib.h>
 #endif /* HAVE_STRNDUP */
 
-char * action_replay_strndup( char const * const string, size_t const limit )
+char *
+action_replay_strndup(
+    char const * const string,
+    size_t const limit
+)
 {
 #if HAVE_STRNDUP
     return strndup( string, limit );

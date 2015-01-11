@@ -1,26 +1,39 @@
 #include "action_replay/args.h"
 #include "action_replay/error.h"
+#include "action_replay/macros.h"
 #include "action_replay/stateful_return.h"
 #include "action_replay/stddef.h"
 #include <errno.h>
 
 action_replay_return_t
-action_replay_args_t_default_destructor( void * const state )
+action_replay_args_t_default_destructor(
+    void * const state
+)
 {
-    ( void ) state;
+    ACTION_REPLAY_UNUSED( state );
     return ( action_replay_return_t const ) { 0 };
 }
 
 action_replay_stateful_return_t
-action_replay_args_t_default_copier( void * const state )
-{ return ( action_replay_stateful_return_t const ) { 0, state }; }
+action_replay_args_t_default_copier(
+    void * const state
+)
+{
+    return ( action_replay_stateful_return_t const ) { 0, state };
+}
  
 action_replay_return_t
-action_replay_args_t_delete( action_replay_args_t args )
-{ return args.destructor( args.state ); }
+action_replay_args_t_delete(
+    action_replay_args_t args
+)
+{
+    return args.destructor( args.state );
+}
 
 action_replay_args_t_return_t
-action_replay_args_t_copy( action_replay_args_t const args )
+action_replay_args_t_copy(
+    action_replay_args_t const args
+)
 {
     action_replay_args_t_return_t result;
 
@@ -38,7 +51,10 @@ action_replay_args_t_copy( action_replay_args_t const args )
     return result;
 }
 
-action_replay_args_t action_replay_args_t_default_args( void )
+action_replay_args_t
+action_replay_args_t_default_args(
+    void
+)
 {
     static action_replay_args_t const result =
     {

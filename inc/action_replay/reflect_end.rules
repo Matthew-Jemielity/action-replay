@@ -1,0 +1,11 @@
+#ifndef ACTION_REPLAY_REFLECT_BEGIN_RULES
+# error "reflect end rules used without accompanying reflect begin"
+#endif
+
+#undef ACTION_REPLAY_REFLECT_BEGIN_RULES
+
+#undef ACTION_REPLAY_CLASS_DECLARATION
+#undef ACTION_REPLAY_CLASS_DEFINITION
+#undef ACTION_REPLAY_CLASS_FIELD
+#undef ACTION_REPLAY_CLASS_METHOD
+

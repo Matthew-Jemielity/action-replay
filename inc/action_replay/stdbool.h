@@ -3,7 +3,7 @@
 
 # if ( HAVE_STDBOOL_H && HAVE__BOOL )
 #  include <stdbool.h>
-# elif (( ! HAVE_STDBOOL_H ) && HAVE_BOOL )
+# elif (( ! HAVE_STDBOOL_H ) && HAVE__BOOL )
 #  ifndef bool
 #   define bool _Bool
 #  endif /* bool */
@@ -23,7 +23,7 @@
 #  ifndef false
 #   define false 0
 #  endif /* false */
-# else /* ( HAVE_STDBOOL_H && ( ! HAVE_BOOL )) */
+# else /* ( HAVE_STDBOOL_H && ( ! HAVE__BOOL )) */
 #  ifndef bool
 #   error "Non-standard bool"
 #  endif /* bool */

@@ -1,0 +1,34 @@
+/**
+ * \file class_end.rules
+ * \author Matthew Jemielity matthew.jemielity@gmail.com
+ * \brief Deinitializes rules for translating macros into class definitions.
+ *
+ * In Action Replay project, class declarations are made using special
+ * macro definitions. Those definitions can be redefined, allowing to
+ * use the same data for different roles. This allows the same set of
+ * *.interface and *.class files to be used for declaring classes and
+ * for setting up reflection. This creates a single point which has to
+ * be changed if class declaration changes. This file must be used along
+ * with <action_replay/class_begin.rules>. This file ends class translation
+ * block. It is an error to include this file without starting the previous
+ * block with <action_replay/class_begin.rules> (there are mechanisms that
+ * will stop compilation if such event is detected). Example use:
+ * #include <action_replay/class_begin.rules>
+ * ACTION_REPLAY_CLASS_DECLARATION( foo );
+ * ACTION_REPLAY_CLASS_DEFINITION( foo )
+ * {
+ *     ACTION_REPLAY_CLASS_FIELD( foo, int, bar )
+ * }
+ * #include <action_replay/class_end.rules>
+ */
+#ifndef ACTION_REPLAY_CLASS_BEGIN_RULES
+# error "class end rules used without accompanying class begin"
+#endif
+
+#undef ACTION_REPLAY_CLASS_BEGIN_RULES
+
+#undef ACTION_REPLAY_CLASS_DECLARATION
+#undef ACTION_REPLAY_CLASS_DEFINITION
+#undef ACTION_REPLAY_CLASS_FIELD
+#undef ACTION_REPLAY_CLASS_METHOD
+

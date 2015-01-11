@@ -3,11 +3,13 @@ AM_CFLAGS = -I$(top_srcdir)/inc
 bin_PROGRAMS = action-replay
 
 MAIN_SOURCES = \
+    src/act.c \
     src/args.c \
     src/class.c \
     src/log.c \
     src/object.c \
     src/object_oriented_programming.c \
+    src/object_oriented_programming_super.c \
     src/player.c \
     src/recorder.c \
     src/stateful_object.c \

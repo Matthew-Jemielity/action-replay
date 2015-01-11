@@ -2,7 +2,7 @@
 # Process this file with autoconf to produce a configure script.
 
 AC_PREREQ([2.64])
-AC_INIT([action-replay], [1.2], [matthew.jemielity@gmail.com])
+AC_INIT([action-replay], [1.3], [matthew.jemielity@gmail.com])
 AC_CONFIG_SRCDIR([src/object_oriented_programming.c])
 AC_CONFIG_FILES([Makefile])
 
@@ -25,6 +25,8 @@ AC_TYPE_UNSIGNED_LONG_LONG_INT
 AC_CHECK_TYPES([_Bool])
 
 # Checks for sizes (needed by some headers)
+AC_CHECK_SIZEOF([unsigned short int])
+AC_CHECK_SIZEOF([signed int])
 AC_CHECK_SIZEOF([uint64_t])
 AC_CHECK_SIZEOF([unsigned long int])
 AC_CHECK_SIZEOF([unsigned long long int])

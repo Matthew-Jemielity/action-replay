@@ -1,0 +1,20 @@
+#ifdef ACTION_REPLAY_REFLECT_BEGIN_RULES
+# error "reflect begin rules used without accompanying reflect end"
+#endif
+
+#include <action_replay/macros.h>
+#include <action_replay/stddef.h>
+
+#define ACTION_REPLAY_REFLECT_BEGIN_RULES
+
+#define ACTION_REPLAY_CLASS_DECLARATION( NAME )
+#define ACTION_REPLAY_CLASS_DEFINITION( NAME )
+#define ACTION_REPLAY_CLASS_FIELD( CLASS, TYPE, NAME ) \
+    { \
+        ACTION_REPLAY_STRINGIFY( TYPE ), \
+        ACTION_REPLAY_STRINGIFY( NAME ), \
+        offsetof( CLASS, NAME ) \
+    },
+#define ACTION_REPLAY_CLASS_METHOD( CLASS, TYPE, NAME ) \
+    ACTION_REPLAY_CLASS_FIELD( CLASS, TYPE, NAME )
+

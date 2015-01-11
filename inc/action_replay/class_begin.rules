@@ -1,0 +1,67 @@
+/**
+ * \file class_begin.rules
+ * \author Matthew Jemielity matthew.jemielity@gmail.com
+ * \brief Initializes rules for translating macros into class definitions.
+ *
+ * In Action Replay project, class declarations are made using special
+ * macro definitions. Those definitions can be redefined, allowing to
+ * use the same data for different roles. This allows the same set of
+ * *.interface and *.class files to be used for declaring classes and
+ * for setting up reflection. This creates a single point which has to
+ * be changed if class declaration changes. This file must be used along
+ * with <action_replay/class_end.rules>. This file begins class translation
+ * block. It is an error to include this file without closing the previous
+ * block with <action_replay/class_end.rules> (there are mechanisms that
+ * will stop compilation if such event is detected). Example use:
+ * #include <action_replay/class_begin.rules>
+ * ACTION_REPLAY_CLASS_DECLARATION( foo );
+ * ACTION_REPLAY_CLASS_DEFINITION( foo )
+ * {
+ *     ACTION_REPLAY_CLASS_FIELD( foo, int, bar )
+ * }
+ * #include <action_replay/class_end.rules>
+ */
+#ifdef ACTION_REPLAY_CLASS_BEGIN_RULES
+# error "class begin rules used without accompanying class close"
+#endif
+
+#include <action_replay/macros.h>
+
+/**
+ * \brief Include guard that ensures proper class block composition.
+ */
+#define ACTION_REPLAY_CLASS_BEGIN_RULES
+
+/**
+ * \brief Declares NAME as a new type representing class.
+ * \remark The same NAME has to be used in all macros defining this class.
+ */
+#define ACTION_REPLAY_CLASS_DECLARATION( NAME ) \
+    typedef struct ACTION_REPLAY_COMPOUNDIFY( NAME, _struct ) NAME
+/**
+ * \brief Starts class definition.
+ */
+#define ACTION_REPLAY_CLASS_DEFINITION( NAME ) \
+    struct ACTION_REPLAY_COMPOUNDIFY( NAME, _struct )
+/**
+ * \brief Declares a publicly accessible variable belonging to the class instance.
+ * \remark Must be inside class declaration.
+ *
+ * The variable can be accessed from an instance of the class (an object).
+ * It is bound to that object - every instance has its own version of this
+ * variable.
+ */
+#define ACTION_REPLAY_CLASS_FIELD( CLASS, TYPE, NAME ) TYPE NAME;
+/**
+ * \brief Declares a publicly accessible function belonging to the class instance.
+ * \remark Must be inside class declaration.
+ *
+ * The function can be called from an instance of the class (an object).
+ * It is bound to the object - every instance has its own pointer to
+ * the function. Initially it points to the class-specific version of it,
+ * but an object can replace it with another function pointer of the same
+ * type. If that object is later copied, its copy will retain the changed
+ * function.
+ */
+#define ACTION_REPLAY_CLASS_METHOD( CLASS, TYPE, NAME ) TYPE NAME;
+
