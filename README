@@ -1,0 +1,6 @@
+# action-replay
+C code to record and replay user interactions on Linux-based systems, using /dev/input/event* nodes. Project aims to use object oriented programming within C99 constrictions.
+
+Uses pthreads, jsmn (http://zserge.com/jsmn.html) and Open Portable Atomics (http://trac.mpich.org/projects/openpa/)
+
+Beacuse of persmissions, requires root access to work.
